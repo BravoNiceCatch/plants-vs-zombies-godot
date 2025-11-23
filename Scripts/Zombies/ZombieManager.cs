@@ -208,7 +208,7 @@ namespace PlantsVsZombies.Zombies
 
 			foreach (Node node in zombies)
 			{
-				if (node is Zombie zombie && zombie.IsInstanceValid() && !zombie.IsDying)
+				if (node is Zombie zombie && GodotObject.IsInstanceValid(zombie) && !zombie.IsDying)
 				{
 					aliveZombies.Add(zombie);
 				}

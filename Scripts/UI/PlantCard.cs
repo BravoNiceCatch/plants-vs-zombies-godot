@@ -1,0 +1,495 @@
+using Godot;
+
+namespace PlantsVsZombies.UI
+{
+	/// <summary>
+	/// 植物卡片组件 - 用于显示可选择的植物
+	/// </summary>
+	public partial class PlantCard : Control
+	{
+		[Export] public string PlantName { get; set; } = "未知植物";
+		[Export] public int SunCost { get; set; } = 50;
+		[Export] public float CooldownTime { get; set; } = 5.0f;
+		[Export] public string Description { get; set; } = "植物描述";
+		[Export] public Texture2D PlantIcon { get; set; }
+		[Export] public PackedScene PlantScene { get; set; }
+
+		// UI组件
+		private Panel _backgroundPanel;
+		private TextureRect _iconRect;
+		private Label _nameLabel;
+		private Label _costLabel;
+		private Label _cooldownLabel;
+		private TextureRect _sunIcon;
+		private AnimationPlayer _animationPlayer;
+		private ProgressBar _cooldownBar;
+
+		// 状态
+		private bool _isAvailable = true;
+		private bool _isOnCooldown = false;
+		private float _currentCooldown = 0f;
+		private bool _isSelected = false;
+
+		// 信号
+		[Signal] public delegate void CardSelectedEventHandler(PlantCard card);
+		[Signal] public delegate void CardDeselectedEventHandler(PlantCard card);
+
+		public override void _Ready()
+		{
+			InitializeComponents();
+			SetupVisuals();
+			ConnectSignals();
+		}
+
+		public override void _Process(double delta)
+		{
+			UpdateCooldown((float)delta);
+		}
+
+		/// <summary>
+		/// 初始化UI组件
+		/// </summary>
+		private void InitializeComponents()
+		{
+			// 设置卡片大小
+			CustomMinimumSize = new Vector2(100, 120);
+			Size = new Vector2(100, 120);
+
+			// 创建背景面板
+			_backgroundPanel = new Panel();
+			_backgroundPanel.Size = Size;
+			AddChild(_backgroundPanel);
+
+			// 创建植物图标
+			_iconRect = new TextureRect();
+			_iconRect.Position = new Vector2(10, 10);
+			_iconRect.Size = new Vector2(80, 60);
+			_iconRect.ExpandMode = TextureRect.ExpandModeEnum.FitWidthProportional;
+			_iconRect.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
+			AddChild(_iconRect);
+
+			// 创建植物名称标签
+			_nameLabel = new Label();
+			_nameLabel.Position = new Vector2(5, 75);
+			_nameLabel.Size = new Vector2(90, 15);
+			_nameLabel.HorizontalAlignment = HorizontalAlignment.Center;
+			_nameLabel.VerticalAlignment = VerticalAlignment.Center;
+			_nameLabel.AddThemeStyleboxOverride("normal", CreateLabelStyleBox());
+			AddChild(_nameLabel);
+
+			// 创建阳光图标
+			_sunIcon = new TextureRect();
+			_sunIcon.Position = new Vector2(5, 95);
+			_sunIcon.Size = new Vector2(16, 16);
+			_sunIcon.Texture = CreateSunTexture();
+			AddChild(_sunIcon);
+
+			// 创建阳光费用标签
+			_costLabel = new Label();
+			_costLabel.Position = new Vector2(25, 95);
+			_costLabel.Size = new Vector2(30, 16);
+			_costLabel.Modulate = Colors.Yellow;
+			_costLabel.AddThemeStyleboxOverride("normal", CreateLabelStyleBox());
+			AddChild(_costLabel);
+
+			// 创建冷却时间标签
+			_cooldownLabel = new Label();
+			_cooldownLabel.Position = new Vector2(60, 95);
+			_cooldownLabel.Size = new Vector2(35, 16);
+			_cooldownLabel.Modulate = Colors.Cyan;
+			_cooldownLabel.Visible = false;
+			_cooldownLabel.AddThemeStyleboxOverride("normal", CreateLabelStyleBox());
+			AddChild(_cooldownLabel);
+
+			// 创建冷却进度条
+			_cooldownBar = new ProgressBar();
+			_cooldownBar.Position = new Vector2(5, 105);
+			_cooldownBar.Size = new Vector2(90, 8);
+			_cooldownBar.MaxValue = CooldownTime;
+			_cooldownBar.Value = 0;
+			_cooldownBar.Visible = false;
+			_cooldownBar.Modulate = Colors.Cyan;
+			AddChild(_cooldownBar);
+
+			// 创建动画播放器
+			_animationPlayer = new AnimationPlayer();
+			AddChild(_animationPlayer);
+		}
+
+		/// <summary>
+		/// 设置视觉效果
+		/// </summary>
+		private void SetupVisuals()
+		{
+			// 设置背景样式
+			var styleBox = new StyleBoxFlat();
+			styleBox.BgColor = new Color(0.2f, 0.3f, 0.2f, 0.9f);
+			styleBox.BorderColor = Colors.DarkGreen;
+			styleBox.BorderWidthLeft = 2;
+			styleBox.BorderWidthRight = 2;
+			styleBox.BorderWidthTop = 2;
+			styleBox.BorderWidthBottom = 2;
+			styleBox.CornerRadiusTopLeft = 8;
+			styleBox.CornerRadiusTopRight = 8;
+			styleBox.CornerRadiusBottomLeft = 8;
+			styleBox.CornerRadiusBottomRight = 8;
+			_backgroundPanel.AddThemeStyleboxOverride("panel", styleBox);
+
+			// 设置植物信息
+			_nameLabel.Text = PlantName;
+			_costLabel.Text = SunCost.ToString();
+
+			// 如果有植物图标，使用它；否则创建默认图标
+			if (PlantIcon != null)
+			{
+				_iconRect.Texture = PlantIcon;
+			}
+			else
+			{
+				_iconRect.Texture = CreateDefaultPlantIcon();
+			}
+		}
+
+		/// <summary>
+		/// 创建标签样式框
+		/// </summary>
+		private StyleBoxFlat CreateLabelStyleBox()
+		{
+			var styleBox = new StyleBoxFlat();
+			styleBox.BgColor = new Color(0, 0, 0, 0.5f);
+			styleBox.CornerRadiusTopLeft = 3;
+			styleBox.CornerRadiusTopRight = 3;
+			styleBox.CornerRadiusBottomLeft = 3;
+			styleBox.CornerRadiusBottomRight = 3;
+			return styleBox;
+		}
+
+		/// <summary>
+		/// 创建阳光纹理
+		/// </summary>
+		private Texture2D CreateSunTexture()
+		{
+			var image = Image.CreateEmpty(16, 16, false, Image.Format.Rgba8);
+			var center = new Vector2I(8, 8);
+
+			for (int x = 0; x < 16; x++)
+			{
+				for (int y = 0; y < 16; y++)
+				{
+					var pos = new Vector2I(x, y);
+					var dist = pos.DistanceTo(center);
+
+					if (dist <= 6f)
+					{
+						var color = new Color(1.0f, 0.8f, 0.0f, 1.0f);
+						image.SetPixel(x, y, color);
+					}
+					else
+					{
+						image.SetPixel(x, y, Colors.Transparent);
+					}
+				}
+			}
+
+			return ImageTexture.CreateFromImage(image);
+		}
+
+		/// <summary>
+		/// 创建默认植物图标
+		/// </summary>
+		private Texture2D CreateDefaultPlantIcon()
+		{
+			var image = Image.CreateEmpty(80, 60, false, Image.Format.Rgba8);
+
+			// 创建简单的叶子形状
+			for (int x = 0; x < 80; x++)
+			{
+				for (int y = 0; y < 60; y++)
+				{
+					var center = new Vector2I(40, 30);
+					var pos = new Vector2I(x, y);
+					var dist = pos.DistanceTo(center);
+
+					if (dist <= 20f)
+					{
+						var intensity = 1.0f - (dist / 20f);
+						var green = 0.3f + intensity * 0.7f;
+						var color = new Color(0.1f, green, 0.1f, 1.0f);
+						image.SetPixel(x, y, color);
+					}
+					else
+					{
+						image.SetPixel(x, y, Colors.Transparent);
+					}
+				}
+			}
+
+			return ImageTexture.CreateFromImage(image);
+		}
+
+		/// <summary>
+		/// 连接信号
+		/// </summary>
+		private void ConnectSignals()
+		{
+			GuiInput += OnGuiInput;
+			MouseEntered += OnMouseEntered;
+			MouseExited += OnMouseExited;
+		}
+
+		/// <summary>
+		/// 处理GUI输入
+		/// </summary>
+		private void OnGuiInput(InputEvent @event)
+		{
+			if (@event is InputEventMouseButton mouseEvent && mouseEvent.Pressed)
+			{
+				if (mouseEvent.ButtonIndex == MouseButton.Left && _isAvailable && !_isOnCooldown)
+				{
+					SelectCard();
+				}
+			}
+		}
+
+		/// <summary>
+		/// 鼠标进入处理
+		/// </summary>
+		private void OnMouseEntered()
+		{
+			if (_isAvailable && !_isOnCooldown)
+			{
+				_backgroundPanel.Modulate = new Color(1.2f, 1.2f, 1.0f, 1.0f);
+				Scale = new Vector2(1.05f, 1.05f);
+			}
+		}
+
+		/// <summary>
+		/// 鼠标退出处理
+		/// </summary>
+		private void OnMouseExited()
+		{
+			if (!_isSelected)
+			{
+				_backgroundPanel.Modulate = Colors.White;
+				Scale = Vector2.One;
+			}
+		}
+
+		/// <summary>
+		/// 选择卡片
+		/// </summary>
+		public void SelectCard()
+		{
+			if (!_isAvailable || _isOnCooldown)
+				return;
+
+			_isSelected = true;
+			_backgroundPanel.Modulate = new Color(1.0f, 1.0f, 0.5f, 1.0f); // 金色高亮
+			Scale = new Vector2(1.1f, 1.1f);
+
+			EmitSignal(SignalName.CardSelected, this);
+			PlaySelectAnimation();
+		}
+
+		/// <summary>
+		/// 取消选择卡片
+		/// </summary>
+		public void DeselectCard()
+		{
+			_isSelected = false;
+			_backgroundPanel.Modulate = Colors.White;
+			Scale = Vector2.One;
+
+			EmitSignal(SignalName.CardDeselected, this);
+		}
+
+		/// <summary>
+		/// 开始冷却
+		/// </summary>
+		public void StartCooldown()
+		{
+			_isOnCooldown = true;
+			_currentCooldown = CooldownTime;
+			_cooldownLabel.Visible = true;
+			_cooldownBar.Visible = true;
+			_isAvailable = false;
+
+			UpdateCooldownDisplay();
+		}
+
+		/// <summary>
+		/// 更新冷却状态
+		/// </summary>
+		private void UpdateCooldown(float delta)
+		{
+			if (_isOnCooldown)
+			{
+				_currentCooldown -= delta;
+
+				if (_currentCooldown <= 0f)
+				{
+					_isOnCooldown = false;
+					_currentCooldown = 0f;
+					_cooldownLabel.Visible = false;
+					_cooldownBar.Visible = false;
+					_isAvailable = true;
+
+					// 如果未被选中，恢复正常颜色
+					if (!_isSelected)
+					{
+						_backgroundPanel.Modulate = Colors.White;
+					}
+				}
+
+				UpdateCooldownDisplay();
+			}
+		}
+
+		/// <summary>
+		/// 更新冷却显示
+		/// </summary>
+		private void UpdateCooldownDisplay()
+		{
+			_cooldownLabel.Text = Mathf.Ceil(_currentCooldown).ToString();
+			_cooldownBar.Value = CooldownTime - _currentCooldown;
+
+			// 根据冷却状态调整透明度
+			if (_isOnCooldown)
+			{
+				var alpha = 0.3f + (_currentCooldown / CooldownTime) * 0.4f;
+				_backgroundPanel.Modulate = new Color(0.6f, 0.6f, 0.6f, alpha);
+			}
+		}
+
+		/// <summary>
+		/// 播放选择动画
+		/// </summary>
+		private void PlaySelectAnimation()
+		{
+			var animation = new Animation();
+			animation.Length = 0.2f;
+
+			var scaleTrack = animation.AddTrack(Animation.TrackType.Value, 0);
+			animation.TrackSetPath(scaleTrack, ".");
+			animation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One * 1.1f);
+			animation.TrackInsertKey(scaleTrack, 0.1f, Vector2.One * 1.2f);
+			animation.TrackInsertKey(scaleTrack, 0.2f, Vector2.One * 1.1f);
+
+			var animLib = new AnimationLibrary();
+			animLib.AddAnimation("select", animation);
+			_animationPlayer.AddAnimationLibrary("ui_anim", animLib);
+			_animationPlayer.Play("select");
+		}
+
+		/// <summary>
+		/// 播放使用动画
+		/// </summary>
+		public void PlayUseAnimation()
+		{
+			var animation = new Animation();
+			animation.Length = 0.3f;
+
+			var scaleTrack = animation.AddTrack(Animation.TrackType.Value, 0);
+			animation.TrackSetPath(scaleTrack, ".");
+			animation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One * 1.1f);
+			animation.TrackInsertKey(scaleTrack, 0.15f, Vector2.One * 0.8f);
+			animation.TrackInsertKey(scaleTrack, 0.3f, Vector2.One);
+
+			var modulateTrack = animation.AddTrack(Animation.TrackType.Value, 0);
+			animation.TrackSetPath(modulateTrack, GetPath());
+			animation.TrackInsertKey(modulateTrack, 0.0f, new Color(1.0f, 1.0f, 0.5f, 1.0f));
+			animation.TrackInsertKey(modulateTrack, 0.15f, new Color(1.0f, 0.8f, 0.2f, 0.8f));
+			animation.TrackInsertKey(modulateTrack, 0.3f, Colors.White);
+
+			var animLib = new AnimationLibrary();
+			animLib.AddAnimation("use", animation);
+			_animationPlayer.AddAnimationLibrary("ui_anim", animLib);
+			_animationPlayer.Play("use");
+		}
+
+		// 公共属性
+		public bool IsAvailable => _isAvailable;
+		public bool IsOnCooldown => _isOnCooldown;
+		public bool IsSelected => _isSelected;
+
+		/// <summary>
+		/// 根据阳光数量更新卡片可用性
+		/// </summary>
+		public void UpdateAvailability(int currentSun)
+		{
+			if (_isOnCooldown)
+			{
+				// 如果在冷却中，保持不可用状态
+				_isAvailable = false;
+			}
+			else
+			{
+				// 根据阳光数量判断是否可用
+				_isAvailable = currentSun >= SunCost;
+			}
+
+			UpdateCardAppearance();
+		}
+
+		/// <summary>
+		/// 更新卡片外观
+		/// </summary>
+		private void UpdateCardAppearance()
+		{
+			if (_isSelected)
+			{
+				// 选中状态保持不变
+				return;
+			}
+
+			if (_isOnCooldown)
+			{
+				// 冷却状态 - 灰色
+				_backgroundPanel.Modulate = new Color(0.6f, 0.6f, 0.6f, 0.7f);
+				_costLabel.Modulate = Colors.Gray;
+				_nameLabel.Modulate = Colors.Gray;
+				_iconRect.Modulate = new Color(0.7f, 0.7f, 0.7f, 1.0f);
+			}
+			else if (!_isAvailable)
+			{
+				// 阳光不足状态 - 暗红色
+				_backgroundPanel.Modulate = new Color(0.4f, 0.2f, 0.2f, 0.8f);
+				_costLabel.Modulate = Colors.Red;
+				_nameLabel.Modulate = Colors.Red;
+				_iconRect.Modulate = new Color(0.8f, 0.6f, 0.6f, 1.0f);
+			}
+			else
+			{
+				// 可用状态 - 正常颜色
+				_backgroundPanel.Modulate = Colors.White;
+				_costLabel.Modulate = Colors.Yellow;
+				_nameLabel.Modulate = Colors.White;
+				_iconRect.Modulate = Colors.White;
+			}
+		}
+
+		/// <summary>
+		/// 检查卡片是否可购买（包括冷却和阳光检查）
+		/// </summary>
+		public bool CanAfford(int currentSun)
+		{
+			return _isAvailable && !_isOnCooldown && currentSun >= SunCost;
+		}
+
+		/// <summary>
+		/// 重置卡片状态
+		/// </summary>
+		public void ResetCard()
+		{
+			_isSelected = false;
+			_isOnCooldown = false;
+			_currentCooldown = 0f;
+			_isAvailable = true;
+			_cooldownLabel.Visible = false;
+			_cooldownBar.Visible = false;
+			_cooldownBar.Value = 0;
+			UpdateCardAppearance();
+		}
+		public PackedScene PlantPrefab => PlantScene;
+	}
+}

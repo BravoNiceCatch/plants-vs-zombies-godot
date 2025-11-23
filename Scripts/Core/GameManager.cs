@@ -92,6 +92,13 @@ namespace PlantsVsZombies.Core
 			GD.Print($"[GameManager] 游戏状态设置为: {(running ? "运行中" : "已停止")}");
 		}
 
+		// 相机震动效果
+		public void ShakeCamera(float intensity, float duration)
+		{
+			// TODO: 实现相机震动效果
+			GD.Print($"[GameManager] 相机震动: 强度={intensity}, 持续时间={duration}");
+		}
+
 		// 初始化碰撞管理器
 		private void InitializeCollisionManager()
 		{

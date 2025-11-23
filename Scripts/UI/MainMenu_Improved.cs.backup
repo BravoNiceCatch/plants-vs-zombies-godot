@@ -1,0 +1,460 @@
+using Godot;
+
+namespace PlantsVsZombies.UI
+{
+	public partial class MainMenu : Control
+	{
+		// UI组件
+		private Panel _backgroundPanel;
+		private TextureRect _logoTexture;
+		private Label _titleLabel;
+		private Label _subtitleLabel;
+		private VBoxContainer _buttonContainer;
+		private Button _startButton;
+		private Button _continueButton;
+		private Button _settingsButton;
+		private Button _exitButton;
+		private AnimationPlayer _animationPlayer;
+		private AudioStreamPlayer _backgroundMusic;
+
+		// 设置面板
+		private MainMenuSettingsPanel _settingsPanel;
+		private bool _isSettingsOpen = false;
+
+		public override void _Ready()
+		{
+			InitializeComponents();
+			SetupVisuals();
+			CreateAnimations();
+			ConnectSignals();
+			PlayIntroAnimation();
+		}
+
+		/// <summary>
+		/// 初始化组件
+		/// </summary>
+		private void InitializeComponents()
+		{
+			// 设置UI基础布局
+			Size = new Vector2I(1920, 1080);
+
+			// 创建背景面板
+			_backgroundPanel = new Panel();
+			_backgroundPanel.Size = Size;
+			AddChild(_backgroundPanel);
+
+			// 创建游戏Logo
+			_logoTexture = new TextureRect();
+			_logoTexture.Position = new Vector2I(710, 100);
+			_logoTexture.Size = new Vector2I(500, 200);
+			_logoTexture.Texture = CreateLogoTexture();
+			_logoTexture.ExpandMode = TextureRect.ExpandModeEnum.FitWidthProportional;
+			_logoTexture.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
+			AddChild(_logoTexture);
+
+			// 创建标题标签
+			_titleLabel = new Label();
+			_titleLabel.Text = "植物大战僵尸";
+			_titleLabel.Position = new Vector2I(710, 320);
+			_titleLabel.Size = new Vector2I(500, 80);
+			AddChild(_titleLabel);
+
+			// 创建副标题标签
+			_subtitleLabel = new Label();
+			_subtitleLabel.Text = "Godot 4.5 版本";
+			_subtitleLabel.Position = new Vector2I(810, 400);
+			_subtitleLabel.Size = new Vector2I(300, 40);
+			_subtitleLabel.Modulate = Colors.LightGreen;
+			AddChild(_subtitleLabel);
+
+			// 创建按钮容器
+			_buttonContainer = new VBoxContainer();
+			_buttonContainer.Position = new Vector2I(810, 480);
+			_buttonContainer.Size = new Vector2I(300, 350);
+			_buttonContainer.AddThemeConstantOverride("separation", 25);
+			AddChild(_buttonContainer);
+
+			// 创建按钮
+			CreateButtons();
+
+			// 创建设置面板
+			_settingsPanel = new MainMenuSettingsPanel();
+			_settingsPanel.Visible = false;
+			AddChild(_settingsPanel);
+
+			// 创建动画播放器
+			_animationPlayer = new AnimationPlayer();
+			AddChild(_animationPlayer);
+
+			// 创建背景音乐播放器
+			_backgroundMusic = new AudioStreamPlayer();
+			AddChild(_backgroundMusic);
+		}
+
+		/// <summary>
+		/// 创建按钮
+		/// </summary>
+		private void CreateButtons()
+		{
+			// 开始游戏按钮
+			_startButton = new Button();
+			_startButton.Text = "开始游戏";
+			_startButton.CustomMinimumSize = new Vector2I(300, 60);
+			_buttonContainer.AddChild(_startButton);
+
+			// 继续游戏按钮
+			_continueButton = new Button();
+			_continueButton.Text = "继续游戏";
+			_continueButton.CustomMinimumSize = new Vector2I(300, 60);
+			_continueButton.Modulate = Colors.Gray; // 初始状态不可用
+			_continueButton.Disabled = true;
+			_buttonContainer.AddChild(_continueButton);
+
+			// 设置按钮
+			_settingsButton = new Button();
+			_settingsButton.Text = "游戏设置";
+			_settingsButton.CustomMinimumSize = new Vector2I(300, 60);
+			_buttonContainer.AddChild(_settingsButton);
+
+			// 退出游戏按钮
+			_exitButton = new Button();
+			_exitButton.Text = "退出游戏";
+			_exitButton.CustomMinimumSize = new Vector2I(300, 60);
+			_buttonContainer.AddChild(_exitButton);
+		}
+
+		/// <summary>
+		/// 设置视觉效果
+		/// </summary>
+		private void SetupVisuals()
+		{
+			// 设置背景样式 - 草坪主题
+			var styleBox = new StyleBoxFlat();
+			styleBox.BgColor = new Color(0.15f, 0.25f, 0.15f, 1.0f);
+			styleBox.BorderColor = Colors.DarkGreen;
+			styleBox.BorderWidthLeft = 5;
+			styleBox.BorderWidthRight = 5;
+			styleBox.BorderWidthTop = 5;
+			styleBox.BorderWidthBottom = 5;
+
+			_backgroundPanel.AddThemeStyleboxOverride("panel", styleBox);
+
+			// 设置标题样式
+			_titleLabel.AddThemeStyleboxOverride("normal", CreateTitleStyleBox());
+			_titleLabel.Modulate = Colors.LightGreen;
+			_titleLabel.HorizontalAlignment = HorizontalAlignment.Center;
+			_titleLabel.VerticalAlignment = VerticalAlignment.Center;
+
+			// 设置副标题样式
+			_subtitleLabel.AddThemeStyleboxOverride("normal", CreateSubtitleStyleBox());
+			_subtitleLabel.HorizontalAlignment = HorizontalAlignment.Center;
+			_subtitleLabel.VerticalAlignment = VerticalAlignment.Center;
+
+			// 设置按钮样式
+			SetupButtonStyles();
+		}
+
+		/// <summary>
+		/// 创建Logo纹理
+		/// </summary>
+		private Texture2D CreateLogoTexture()
+		{
+			var imageSize = 500;
+			var image = Image.Create(imageSize, imageSize / 2, false, Image.Format.Rgba8);
+
+			// 创建PVZ标志性的绿色植物风格Logo
+			for (int x = 0; x < imageSize; x++)
+			{
+				for (int y = 0; y < imageSize / 2; y++)
+				{
+					// 创建植物形状
+					var centerX = imageSize / 2;
+					var centerY = imageSize / 4;
+					var pos = new Vector2I(x, y);
+					var distFromCenter = pos.DistanceTo(new Vector2I(centerX, centerY));
+
+					// 创建圆形植物形状
+					if (distFromCenter <= imageSize / 3)
+					{
+						// 绿色渐变
+						var intensity = 1.0f - (distFromCenter / (imageSize / 3));
+						var green = 0.4f + intensity * 0.6f;
+						var color = new Color(0.1f, green, 0.1f, 1.0f);
+						image.SetPixel(x, y, color);
+					}
+					else
+					{
+						// 透明背景
+						image.SetPixel(x, y, Colors.Transparent);
+					}
+				}
+			}
+
+			return ImageTexture.CreateFromImage(image);
+		}
+
+		/// <summary>
+		/// 创建标题样式框
+		/// </summary>
+		private StyleBoxFlat CreateTitleStyleBox()
+		{
+			var styleBox = new StyleBoxFlat();
+			styleBox.BgColor = new Color(0, 0, 0, 0.6f);
+			styleBox.BorderColor = Colors.Yellow;
+			styleBox.BorderWidthLeft = 3;
+			styleBox.BorderWidthRight = 3;
+			styleBox.BorderWidthTop = 3;
+			styleBox.BorderWidthBottom = 3;
+			styleBox.CornerRadiusTopLeft = 15;
+			styleBox.CornerRadiusTopRight = 15;
+			styleBox.CornerRadiusBottomLeft = 15;
+			styleBox.CornerRadiusBottomRight = 15;
+			return styleBox;
+		}
+
+		/// <summary>
+		/// 创建副标题样式框
+		/// </summary>
+		private StyleBoxFlat CreateSubtitleStyleBox()
+		{
+			var styleBox = new StyleBoxFlat();
+			styleBox.BgColor = new Color(0, 0, 0, 0.4f);
+			styleBox.CornerRadiusTopLeft = 8;
+			styleBox.CornerRadiusTopRight = 8;
+			styleBox.CornerRadiusBottomLeft = 8;
+			styleBox.CornerRadiusBottomRight = 8;
+			return styleBox;
+		}
+
+		/// <summary>
+		/// 设置按钮样式
+		/// </summary>
+		private void SetupButtonStyles()
+		{
+			var buttons = new Button[] { _startButton, _continueButton, _settingsButton, _exitButton };
+
+			foreach (var button in buttons)
+			{
+				var normalStyle = CreateButtonStyleBox(new Color(0.2f, 0.4f, 0.2f, 0.9f), Colors.LightGreen);
+				var hoverStyle = CreateButtonStyleBox(new Color(0.3f, 0.5f, 0.3f, 0.9f), Colors.White);
+				var pressedStyle = CreateButtonStyleBox(new Color(0.1f, 0.3f, 0.1f, 0.9f), Colors.LightGreen);
+
+				button.AddThemeStyleboxOverride("normal", normalStyle);
+				button.AddThemeStyleboxOverride("hover", hoverStyle);
+				button.AddThemeStyleboxOverride("pressed", pressedStyle);
+
+				button.Modulate = Colors.White;
+			}
+		}
+
+		/// <summary>
+		/// 创建按钮样式框
+		/// </summary>
+		private StyleBoxFlat CreateButtonStyleBox(Color bgColor, Color borderColor)
+		{
+			var styleBox = new StyleBoxFlat();
+			styleBox.BgColor = bgColor;
+			styleBox.BorderColor = borderColor;
+			styleBox.BorderWidthLeft = 3;
+			styleBox.BorderWidthRight = 3;
+			styleBox.BorderWidthTop = 3;
+			styleBox.BorderWidthBottom = 3;
+			styleBox.CornerRadiusTopLeft = 12;
+			styleBox.CornerRadiusTopRight = 12;
+			styleBox.CornerRadiusBottomLeft = 12;
+			styleBox.CornerRadiusBottomRight = 12;
+			return styleBox;
+		}
+
+		/// <summary>
+		/// 创建动画
+		/// </summary>
+		private void CreateAnimations()
+		{
+			// Logo进入动画
+			var logoAnimation = new Animation();
+			logoAnimation.Length = 1.0f;
+
+			var logoScaleTrack = logoAnimation.AddTrack(Animation.TrackType.Value, 0);
+			logoAnimation.TrackSetPath(logoScaleTrack, _logoTexture.GetPath());
+			logoAnimation.TrackInsertKey(logoScaleTrack, 0.0f, Vector2.Zero);
+			logoAnimation.TrackInsertKey(logoScaleTrack, 0.5f, Vector2.One * 1.1f);
+			logoAnimation.TrackInsertKey(logoScaleTrack, 1.0f, Vector2.One);
+
+			var logoAnimLib = new AnimationLibrary();
+            logoAnimLib.AddAnimation("logoIntro", logoAnimation);
+			_animationPlayer.AddAnimationLibrary("ui_anim", logoAnimLib);
+
+			// 按钮逐个进入动画
+			var buttonsAnimation = new Animation();
+			buttonsAnimation.Length = 0.8f;
+
+			var buttonsModulateTrack = buttonsAnimation.AddTrack(Animation.TrackType.Value, 0);
+			buttonsAnimation.TrackSetPath(buttonsModulateTrack, _buttonContainer.GetPath());
+			buttonsAnimation.TrackInsertKey(buttonsModulateTrack, 0.0f, new Color(1, 1, 1, 0));
+			buttonsAnimation.TrackInsertKey(buttonsModulateTrack, 0.8f, new Color(1, 1, 1, 1));
+
+			var buttonsAnimLib = new AnimationLibrary();
+			buttonsAnimLib.AddAnimation("buttonsIntro", buttonsAnimation);
+			_animationPlayer.AddAnimationLibrary("ui_anim", buttonsAnimLib);
+		}
+
+		/// <summary>
+		/// 连接信号
+		/// </summary>
+		private void ConnectSignals()
+		{
+			_startButton.Pressed += OnStartButtonPressed;
+			_continueButton.Pressed += OnContinueButtonPressed;
+			_settingsButton.Pressed += OnSettingsButtonPressed;
+			_exitButton.Pressed += OnExitButtonPressed;
+
+			_settingsPanel.Closed += OnSettingsClosed;
+		}
+
+		/// <summary>
+		/// 播放进入动画
+		/// </summary>
+		private void PlayIntroAnimation()
+		{
+			// 播放Logo动画
+			_animationPlayer.Play("logoIntro");
+
+			// 延迟播放按钮动画
+			GetTree().CreateTimer(0.5f).Timeout += () =>
+			{
+				_animationPlayer.Play("buttonsIntro");
+			};
+		}
+
+		/// <summary>
+		/// 开始游戏按钮处理
+		/// </summary>
+		private void OnStartButtonPressed()
+		{
+			GD.Print("[MainMenu] 开始新游戏");
+			GetTree().ChangeSceneToFile("res://Scenes/GameScene.tscn");
+		}
+
+		/// <summary>
+		/// 继续游戏按钮处理
+		/// </summary>
+		private void OnContinueButtonPressed()
+		{
+			GD.Print("[MainMenu] 继续游戏");
+			// TODO: 实现继续游戏逻辑（加载存档）
+			GetTree().ChangeSceneToFile("res://Scenes/GameScene.tscn");
+		}
+
+		/// <summary>
+		/// 设置按钮处理
+		/// </summary>
+		private void OnSettingsButtonPressed()
+		{
+			_isSettingsOpen = true;
+			_settingsPanel.Visible = true;
+			_buttonContainer.Visible = false;
+			_logoTexture.Visible = false;
+			_titleLabel.Visible = false;
+			_subtitleLabel.Visible = false;
+
+			GD.Print("[MainMenu] 打开设置");
+		}
+
+		/// <summary>
+		/// 设置关闭处理
+		/// </summary>
+		private void OnSettingsClosed()
+		{
+			_isSettingsOpen = false;
+			_settingsPanel.Visible = false;
+			_buttonContainer.Visible = true;
+			_logoTexture.Visible = true;
+			_titleLabel.Visible = true;
+			_subtitleLabel.Visible = true;
+
+			GD.Print("[MainMenu] 关闭设置");
+		}
+
+		/// <summary>
+		/// 退出游戏按钮处理
+		/// </summary>
+		private void OnExitButtonPressed()
+		{
+			GD.Print("[MainMenu] 退出游戏");
+			GetTree().Quit();
+		}
+
+		/// <summary>
+		/// 主菜单设置面板
+		/// </summary>
+		private partial class MainMenuSettingsPanel : Control
+		{
+			private Panel _backgroundPanel;
+			private Label _titleLabel;
+			private VBoxContainer _settingsContainer;
+			private Button _backButton;
+
+			[Signal] public delegate void ClosedEventHandler();
+
+			public override void _Ready()
+			{
+				Size = new Vector2I(800, 600);
+				Position = new Vector2I(560, 240); // 居中位置
+
+				CreateComponents();
+				SetupVisuals();
+			}
+
+			private void CreateComponents()
+			{
+				// 背景
+				_backgroundPanel = new Panel();
+				_backgroundPanel.Size = Size;
+				AddChild(_backgroundPanel);
+
+				// 标题
+				_titleLabel = new Label();
+				_titleLabel.Text = "游戏设置";
+				_titleLabel.Position = new Vector2I(300, 50);
+				_titleLabel.Size = new Vector2I(200, 50);
+				AddChild(_titleLabel);
+
+				// 设置容器
+				_settingsContainer = new VBoxContainer();
+				_settingsContainer.Position = new Vector2I(200, 150);
+				_settingsContainer.Size = new Vector2I(400, 350);
+				_settingsContainer.AddThemeConstantOverride("separation", 30);
+				AddChild(_settingsContainer);
+
+				// 这里可以添加各种设置选项
+				// 视频设置、音频设置、控制设置等
+
+				// 返回按钮
+				_backButton = new Button();
+				_backButton.Text = "返回主菜单";
+				_backButton.CustomMinimumSize = new Vector2I(200, 60);
+				_settingsContainer.AddChild(_backButton);
+
+				// 连接信号
+				_backButton.Pressed += () => EmitSignal(SignalName.Closed);
+			}
+
+			private void SetupVisuals()
+			{
+				var styleBox = new StyleBoxFlat();
+				styleBox.BgColor = new Color(0.15f, 0.25f, 0.15f, 0.95f);
+				styleBox.BorderColor = Colors.LightGreen;
+				styleBox.BorderWidthLeft = 4;
+				styleBox.CornerRadiusTopLeft = 15;
+				styleBox.CornerRadiusTopRight = 15;
+				styleBox.CornerRadiusBottomLeft = 15;
+				styleBox.CornerRadiusBottomRight = 15;
+				_backgroundPanel.AddThemeStyleboxOverride("panel", styleBox);
+
+				_titleLabel.Modulate = Colors.LightGreen;
+				_titleLabel.HorizontalAlignment = HorizontalAlignment.Center;
+			}
+		}
+	}
+}

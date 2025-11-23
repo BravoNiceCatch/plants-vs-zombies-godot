@@ -3,22 +3,31 @@ using PlantsVsZombies.Combat;
 using PlantsVsZombies.Effects;
 using PlantsVsZombies.Scripts.Combat;
 using PlantsVsZombies.Core;
+using PlantsVsZombies.UI;
 
 namespace PlantsVsZombies.Game
 {
 	public partial class GameScene : Node2D
 	{
 		private GridContainer _gameGrid;
-		private Label _sunCountLabel;
 		private Label _zombieCountLabel;
 		private Label _combatStatsLabel;
-		private int _sunCount = 50; // 初始阳光
 		private int _zombieKillCount = 0; // 击杀僵尸数
-		
+
 		// 战斗系统组件
 		private CombatManager _combatManager;
 		private Timer _sunGenerationTimer;
 		private Timer _combatStatsUpdateTimer;
+
+		// 阳光系统组件
+		private Timer _sunDropTimer;
+		private PackedScene _sunScene;
+		private const float SUN_DROP_INTERVAL = 8.0f; // 阳光掉落间隔（秒）
+
+		// 新UI组件
+		private SunCounter _sunCounter;
+		private PlantCardSelector _plantCardSelector;
+		private PauseMenu _pauseMenu;
 		
 		public override void _Ready()
 		{
@@ -27,60 +36,98 @@ namespace PlantsVsZombies.Game
 			InitializeTimers();
 			ConnectSignals();
 
-			// 设置游戏为运行状态
-			GameManager.Instance.SetGameRunning(true);
+			// 设置游戏为运行状态 - 添加空引用检查
+			if (GameManager.Instance != null)
+			{
+				GameManager.Instance.SetGameRunning(true);
+			}
+			else
+			{
+				GD.Print("[GameScene] 警告: GameManager.Instance 为 null，游戏状态可能无法正确设置");
+				GD.Print("[GameScene] 建议: 请检查 GameManager 是否已正确配置为自动加载");
+			}
 		}
 		
 		private void InitializeGameUI()
 		{
+			// 创建新的UI组件
+			InitializeNewUIComponents();
+
 			// 创建游戏网格 (5行9列)
 			_gameGrid = new GridContainer();
 			_gameGrid.Columns = 9;
-			_gameGrid.Position = new Vector2I(300, 150); // 偏移以适应UI布局
+			_gameGrid.Position = new Vector2I(300, 180); // 调整位置以适应新的UI布局
 			AddChild(_gameGrid);
-			
-			// 创建网格单元格
+
+			// 创建草坪格子
 			for (int row = 0; row < 5; row++)
 			{
 				for (int col = 0; col < 9; col++)
 				{
-					var slot = new Panel();
-					slot.Size = new Vector2I(120, 120);
-					slot.Modulate = Colors.Green;
-					
-					// 添加边框
-					var styleBox = new StyleBoxFlat();
-					styleBox.BorderColor = Colors.DarkGreen;
-					styleBox.BorderWidthLeft = 2;
-					styleBox.BorderWidthRight = 2;
-					styleBox.BorderWidthTop = 2;
-					styleBox.BorderWidthBottom = 2;
-					slot.AddThemeStyleboxOverride("panel", styleBox);
-					
-					_gameGrid.AddChild(slot);
+					var lawnSlot = new LawnSlot();
+					lawnSlot.GridPosition = new Vector2I(col, row);
+					lawnSlot.Name = $"LawnSlot_{row}_{col}";
+
+					_gameGrid.AddChild(lawnSlot);
 				}
 			}
-			
-			// 创建阳光显示
-			_sunCountLabel = new Label();
-			_sunCountLabel.Text = $"阳光: {_sunCount}";
-			_sunCountLabel.Position = new Vector2I(50, 50);
-			_sunCountLabel.Modulate = Colors.Yellow;
-			AddChild(_sunCountLabel);
-			
-			// 创建击杀数显示
+
+			// 创建击杀数显示（保留原有的统计显示）
 			_zombieCountLabel = new Label();
 			_zombieCountLabel.Text = $"击杀: {_zombieKillCount}";
-			_zombieCountLabel.Position = new Vector2I(50, 80);
+			_zombieCountLabel.Position = new Vector2I(50, 120);
 			_zombieCountLabel.Modulate = Colors.Red;
+			_zombieCountLabel.AddThemeStyleboxOverride("normal", CreateLabelStyleBox());
 			AddChild(_zombieCountLabel);
-			
-			// 创建战斗统计显示
+
+			// 创建战斗统计显示（保留原有的统计显示）
 			_combatStatsLabel = new Label();
 			_combatStatsLabel.Text = "战斗: 爆炸0 伤害0";
-			_combatStatsLabel.Position = new Vector2I(50, 110);
+			_combatStatsLabel.Position = new Vector2I(50, 150);
 			_combatStatsLabel.Modulate = Colors.Cyan;
+			_combatStatsLabel.AddThemeStyleboxOverride("normal", CreateLabelStyleBox());
 			AddChild(_combatStatsLabel);
+		}
+
+		/// <summary>
+		/// 初始化新的UI组件
+		/// </summary>
+		private void InitializeNewUIComponents()
+		{
+			// 创建阳光计数器
+			_sunCounter = new SunCounter();
+			_sunCounter.Position = new Vector2I(50, 20);
+			_sunCounter.SetSun(50); // 初始阳光
+			AddChild(_sunCounter);
+
+			// 创建植物卡片选择器
+			_plantCardSelector = new PlantCardSelector();
+			AddChild(_plantCardSelector);
+
+			// 创建暂停菜单
+			_pauseMenu = new PauseMenu();
+			AddChild(_pauseMenu);
+
+			// 连接新UI组件的信号
+			_sunCounter.SunCollected += OnSunCollectedFromUI;
+			_pauseMenu.Resumed += OnPauseMenuResumed;
+			_pauseMenu.RestartRequested += OnPauseMenuRestartRequested;
+			_pauseMenu.MainMenuRequested += OnPauseMenuMainMenuRequested;
+			_pauseMenu.ExitRequested += OnPauseMenuExitRequested;
+		}
+
+		/// <summary>
+		/// 创建标签样式框
+		/// </summary>
+		private StyleBoxFlat CreateLabelStyleBox()
+		{
+			var styleBox = new StyleBoxFlat();
+			styleBox.BgColor = new Color(0, 0, 0, 0.5f);
+			styleBox.CornerRadiusTopLeft = 5;
+			styleBox.CornerRadiusTopRight = 5;
+			styleBox.CornerRadiusBottomLeft = 5;
+			styleBox.CornerRadiusBottomRight = 5;
+			return styleBox;
 		}
 		
 		/// <summary>
@@ -108,12 +155,26 @@ namespace PlantsVsZombies.Game
 			_sunGenerationTimer.Autostart = true;
 			AddChild(_sunGenerationTimer);
 			
+			// 阳光掉落计时器（每8秒）
+			_sunDropTimer = new Timer();
+			_sunDropTimer.WaitTime = SUN_DROP_INTERVAL;
+			_sunDropTimer.Timeout += OnSunDropTimer;
+			_sunDropTimer.Autostart = true;
+			AddChild(_sunDropTimer);
+			
 			// 战斗统计更新计时器（每1秒）
 			_combatStatsUpdateTimer = new Timer();
 			_combatStatsUpdateTimer.WaitTime = 1.0f;
 			_combatStatsUpdateTimer.Timeout += UpdateCombatStats;
 			_combatStatsUpdateTimer.Autostart = true;
 			AddChild(_combatStatsUpdateTimer);
+			
+			// 预加载阳光场景
+			_sunScene = GD.Load<PackedScene>("res://Scenes/Game/Sun.tscn");
+			if (_sunScene == null)
+			{
+				GD.Print("[GameScene] 警告: 无法加载阳光场景，将动态创建");
+			}
 		}
 		
 		private void ConnectSignals()
@@ -124,24 +185,28 @@ namespace PlantsVsZombies.Game
 		
 		public void AddSun(int amount)
 		{
-			_sunCount += amount;
-			UpdateSunDisplay();
+			if (_sunCounter != null)
+			{
+				_sunCounter.AddSun(amount);
+			}
 		}
-		
+
 		public bool SpendSun(int amount)
 		{
-			if (_sunCount >= amount)
+			if (_sunCounter != null)
 			{
-				_sunCount -= amount;
-				UpdateSunDisplay();
-				return true;
+				return _sunCounter.SpendSun(amount);
 			}
 			return false;
 		}
-		
-		private void UpdateSunDisplay()
+
+		public bool HasEnoughSun(int amount)
 		{
-			_sunCountLabel.Text = $"阳光: {_sunCount}";
+			if (_sunCounter != null)
+			{
+				return _sunCounter.HasEnoughSun(amount);
+			}
+			return false;
 		}
 		
 		public void OnZombieKilled()
@@ -156,7 +221,124 @@ namespace PlantsVsZombies.Game
 		private void OnSunGenerationTimer()
 		{
 			AddSun(25); // 每10秒生成25阳光
-			GD.Print("[GameScene] 阳光生成: +25");
+			GD.Print("[GameScene] 自动阳光生成: +25");
+		}
+		
+		/// <summary>
+		/// 阳光掉落计时器回调
+		/// </summary>
+		private void OnSunDropTimer()
+		{
+			DropSunFromSky();
+		}
+		
+		/// <summary>
+		/// 从天空掉落阳光
+		/// </summary>
+		private void DropSunFromSky()
+		{
+			Sun sun;
+			
+			// 尝试从场景加载，如果失败则动态创建
+			if (_sunScene != null)
+			{
+				sun = _sunScene.Instantiate<Sun>();
+			}
+			else
+			{
+				sun = new Sun();
+			}
+			
+			if (sun != null)
+			{
+				// 随机掉落位置
+				var randomX = GD.RandRange(100, 1600);
+				var startPos = new Vector2(randomX, -50); // 从屏幕上方
+				var targetY = GD.RandRange(400, 600); // 草坪区域高度
+				
+				// 设置阳光参数
+				sun.SunValue = 25;
+				sun.Name = "Sun_" + Time.GetUnixTimeFromSystem();
+				
+				// 连接信号
+				sun.SunCollected += OnSunCollected;
+				sun.SunExpired += OnSunExpired;
+				
+				// 添加到场景
+				AddChild(sun);
+				
+				// 开始掉落
+				sun.StartFalling(startPos, targetY);
+				
+				GD.Print($"[GameScene] 阳光掉落: 位置 X={randomX}");
+			}
+			else
+			{
+				GD.Print("[GameScene] 错误: 无法创建阳光对象");
+			}
+		}
+		
+		/// <summary>
+		/// 阳光被收集的回调
+		/// </summary>
+		/// <param name="value">阳光值</param>
+		private void OnSunCollected(int value)
+		{
+			AddSun(value);
+			GD.Print($"[GameScene] 阳光收集成功: +{value}");
+		}
+		
+		/// <summary>
+		/// 阳光过期的回调
+		/// </summary>
+		private void OnSunExpired()
+		{
+			GD.Print("[GameScene] 阳光过期未收集");
+		}
+
+		/// <summary>
+		/// UI阳光收集回调
+		/// </summary>
+		/// <param name="value">阳光值</param>
+		private void OnSunCollectedFromUI(int value)
+		{
+			// 这里可以添加收集阳光的额外效果
+			GD.Print($"[GameScene] UI阳光收集: +{value}");
+		}
+
+		/// <summary>
+		/// 暂停菜单恢复回调
+		/// </summary>
+		private void OnPauseMenuResumed()
+		{
+			GD.Print("[GameScene] 游戏恢复");
+		}
+
+		/// <summary>
+		/// 暂停菜单重启请求回调
+		/// </summary>
+		private void OnPauseMenuRestartRequested()
+		{
+			GD.Print("[GameScene] 重新开始游戏");
+			GetTree().ReloadCurrentScene();
+		}
+
+		/// <summary>
+		/// 暂停菜单返回主菜单请求回调
+		/// </summary>
+		private void OnPauseMenuMainMenuRequested()
+		{
+			GD.Print("[GameScene] 返回主菜单");
+			GetTree().ChangeSceneToFile("res://Scenes/MainMenu.tscn");
+		}
+
+		/// <summary>
+		/// 暂停菜单退出请求回调
+		/// </summary>
+		private void OnPauseMenuExitRequested()
+		{
+			GD.Print("[GameScene] 退出游戏");
+			GetTree().Quit();
 		}
 		
 		/// <summary>
@@ -263,25 +445,23 @@ namespace PlantsVsZombies.Game
 			// 处理输入事件
 			if (@event is InputEventMouseButton mouseEvent)
 			{
-				if (mouseEvent.Pressed && mouseEvent.ButtonIndex == MouseButton.Right)
+				if (mouseEvent.Pressed)
 				{
-					// 右键点击创建测试爆炸
-					CreateTestExplosion(GetGlobalMousePosition());
-				}
-				else if (mouseEvent.Pressed && mouseEvent.ButtonIndex == MouseButton.Middle)
-				{
-					// 中键点击发射测试豌豆
-					var startPos = new Vector2(350, 300); // 从左侧发射
-					var direction = Vector2.Right;
-					CreateTestPea(startPos, direction);
-				}
-				else if (mouseEvent.Pressed && mouseEvent.ButtonIndex == MouseButton.Left && mouseEvent.DoubleClick)
-				{
-					// 左键双击种植樱桃炸弹
-					var gridPos = WorldToGridPosition(GetGlobalMousePosition());
-					if (IsValidGridPosition(gridPos))
+					switch (mouseEvent.ButtonIndex)
 					{
-						PlantCherryBomb(gridPos);
+						case MouseButton.Left:
+							HandleLeftClick(mouseEvent);
+							break;
+						case MouseButton.Right:
+							// 右键点击创建测试爆炸
+							CreateTestExplosion(GetGlobalMousePosition());
+							break;
+						case MouseButton.Middle:
+							// 中键点击发射测试豌豆
+							var startPos = new Vector2(350, 300); // 从左侧发射
+							var direction = Vector2.Right;
+							CreateTestPea(startPos, direction);
+							break;
 					}
 				}
 			}
@@ -295,12 +475,55 @@ namespace PlantsVsZombies.Game
 					PlantCherryBomb(gridPos);
 				}
 			}
-			// 按2键发射测试豌豆
-			else if (@event.IsActionPressed("ui_cancel")) // ESC键改为发射豌豆
+		}
+
+		/// <summary>
+		/// 处理左键点击
+		/// </summary>
+		private void HandleLeftClick(InputEventMouseButton mouseEvent)
+		{
+			var globalMousePos = GetGlobalMousePosition();
+
+			// 检查是否点击在草坪网格内
+			var gridPos = WorldToGridPosition(globalMousePos);
+			if (IsValidGridPosition(gridPos))
 			{
-				var startPos = new Vector2(350, 300); // 从左侧发射
-				var direction = Vector2.Right;
-				CreateTestPea(startPos, direction);
+				// 如果有选中的植物卡片，尝试种植
+				if (_plantCardSelector != null && _plantCardSelector.SelectedCard != null)
+				{
+					if (_plantCardSelector.UseSelectedPlant(gridPos))
+					{
+						// 播放种植动画
+						PlayPlantAnimation(gridPos);
+					}
+					else
+					{
+						// 阳光不足，播放警告动画
+						if (_sunCounter != null)
+						{
+							_sunCounter.PlayWarningAnimation();
+						}
+					}
+				}
+				else if (mouseEvent.DoubleClick)
+				{
+					// 双击直接种植樱桃炸弹（保留原有功能）
+					PlantCherryBomb(gridPos);
+				}
+			}
+		}
+
+		/// <summary>
+		/// 播放种植动画
+		/// </summary>
+		private void PlayPlantAnimation(Vector2I gridPosition)
+		{
+			// 找到对应的草坪格子并播放动画
+			var lawnSlotName = $"LawnSlot_{gridPosition.Y}_{gridPosition.X}";
+			var lawnSlot = GetNodeOrNull(lawnSlotName) as LawnSlot;
+			if (lawnSlot != null)
+			{
+				lawnSlot.PlayPlantAnimation();
 			}
 		}
 		
@@ -350,8 +573,15 @@ namespace PlantsVsZombies.Game
 		/// </summary>
 		public void CleanupGame()
 		{
-			// 设置游戏为停止状态
-			GameManager.Instance.SetGameRunning(false);
+			// 设置游戏为停止状态 - 添加空引用检查
+			if (GameManager.Instance != null)
+			{
+				GameManager.Instance.SetGameRunning(false);
+			}
+			else
+			{
+				GD.Print("[GameScene] 警告: GameManager.Instance 为 null，无法设置游戏状态");
+			}
 
 			if (_combatManager != null)
 			{

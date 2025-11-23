@@ -3,7 +3,7 @@ issue: 6
 stream: 战斗管理器和爆炸系统
 agent: backend-specialist
 started: 2025-11-23T03:15:05Z
-status: in_progress
+status: completed
 ---
 
 # Stream C: 战斗管理器和爆炸系统

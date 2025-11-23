@@ -4,6 +4,8 @@ namespace PlantsVsZombies.Zombies
 {
 	public partial class BasicZombie : Zombie
 	{
+		private Sprite2D sprite;
+
 		public BasicZombie()
 		{
 			MoveSpeed = 26.67f; // 1格/3秒 (80像素/3秒)
@@ -11,34 +13,37 @@ namespace PlantsVsZombies.Zombies
 			Damage = 10; // 每秒10点伤害
 			AttackRange = 40f;
 			AttackCooldown = 1.5f;
+
+			// 初始化精灵
+			sprite = new Sprite2D();
+			AddChild(sprite);
 		}
 
 		protected override void DrawZombieShape()
 		{
 			// 创建僵尸的几何图形外观
-			var canvasItem = GetCanvasItem();
 
 			// 头部：浅灰色圆形
 			var headPosition = new Vector2(0, -15);
 			var headRadius = 12f;
-			DrawHead(canvasItem, headPosition, headRadius);
+			DrawHead(headPosition, headRadius);
 
 			// 身体：深灰色矩形
 			var bodyPosition = new Vector2(0, 5);
 			var bodySize = new Vector2(25, 30);
-			DrawBody(canvasItem, bodyPosition, bodySize);
+			DrawBody(bodyPosition, bodySize);
 
 			// 手臂：小矩形
-			DrawArms(canvasItem, bodyPosition, bodySize);
+			DrawArms(bodyPosition, bodySize);
 
 			// 腿部：细长矩形
-			DrawLegs(canvasItem, bodyPosition, bodySize);
+			DrawLegs(bodyPosition, bodySize);
 
 			// 眼睛：红色小圆形
-			DrawEyes(canvasItem, headPosition, headRadius);
+			DrawEyes(headPosition, headRadius);
 		}
 
-		private void DrawHead(RID canvasItem, Vector2 position, float radius)
+		private void DrawHead(Vector2 position, float radius)
 		{
 			// 头部使用浅灰色圆形
 			var headTexture = CreateCircleTexture(radius * 2, Colors.LightGray);
@@ -46,7 +51,7 @@ namespace PlantsVsZombies.Zombies
 			sprite.Position = position;
 		}
 
-		private void DrawBody(RID canvasItem, Vector2 position, Vector2 size)
+		private void DrawBody(Vector2 position, Vector2 size)
 		{
 			// 身体使用深灰色矩形
 			var bodyTexture = CreateRectangleTexture(size, Colors.DarkGray);
@@ -56,7 +61,7 @@ namespace PlantsVsZombies.Zombies
 			AddChild(bodySprite);
 		}
 
-		private void DrawArms(RID canvasItem, Vector2 bodyPosition, Vector2 bodySize)
+		private void DrawArms(Vector2 bodyPosition, Vector2 bodySize)
 		{
 			// 左臂
 			var leftArmTexture = CreateRectangleTexture(new Vector2(8, 20), Colors.Gray);
@@ -75,7 +80,7 @@ namespace PlantsVsZombies.Zombies
 			AddChild(rightArmSprite);
 		}
 
-		private void DrawLegs(RID canvasItem, Vector2 bodyPosition, Vector2 bodySize)
+		private void DrawLegs(Vector2 bodyPosition, Vector2 bodySize)
 		{
 			// 左腿
 			var leftLegTexture = CreateRectangleTexture(new Vector2(6, 15), Colors.DarkSlateGray);
@@ -92,7 +97,7 @@ namespace PlantsVsZombies.Zombies
 			AddChild(rightLegSprite);
 		}
 
-		private void DrawEyes(RID canvasItem, Vector2 headPosition, float headRadius)
+		private void DrawEyes(Vector2 headPosition, float headRadius)
 		{
 			// 左眼
 			var leftEyeTexture = CreateCircleTexture(4, Colors.Red);
@@ -111,7 +116,7 @@ namespace PlantsVsZombies.Zombies
 
 		private ImageTexture CreateCircleTexture(float diameter, Color color)
 		{
-			var image = Image.Create((int)diameter, (int)diameter, false, Image.Format.Rgba8);
+			var image = Image.CreateEmpty((int)diameter, (int)diameter, false, Image.Format.Rgba8);
 			image.Fill(color);
 
 			// 创建圆形遮罩
@@ -136,7 +141,7 @@ namespace PlantsVsZombies.Zombies
 
 		private ImageTexture CreateRectangleTexture(Vector2 size, Color color)
 		{
-			var image = Image.Create((int)size.X, (int)size.Y, false, Image.Format.Rgba8);
+			var image = Image.CreateEmpty((int)size.X, (int)size.Y, false, Image.Format.Rgba8);
 			image.Fill(color);
 
 			// 添加边框

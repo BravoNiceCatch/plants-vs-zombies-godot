@@ -55,9 +55,8 @@ namespace PlantsVsZombies.Scripts.Combat
         private void CreatePeaTexture()
         {
             // 使用Godot的内置功能创建圆形纹理
-            var image = new Image();
             int imageSize = (int)PeaSize * 2;
-            image.Create(imageSize, imageSize, false, Image.Format.Rgba8);
+            var image = Image.CreateEmpty(imageSize, imageSize, false, Image.Format.Rgba8);
 
             // 填充透明背景
             image.Fill(Colors.Transparent);
@@ -112,22 +111,20 @@ namespace PlantsVsZombies.Scripts.Combat
             particleMaterial.Direction = Vector3.Zero;
             particleMaterial.Spread = Mathf.Pi; // 全方向发射
 
-            // 初始速度
+            // 初始速度 - 使用 Vector3
             particleMaterial.InitialVelocityMin = 50f;
             particleMaterial.InitialVelocityMax = 150f;
 
             // 粒子大小
-            particleMaterial.ScaleMin = Vector3.One * 0.2f;
-            particleMaterial.ScaleMax = Vector3.One * 0.5f;
+            particleMaterial.ScaleMin = 0.2f;
+            particleMaterial.ScaleMax = 0.5f;
 
             // 颜色
             particleMaterial.Color = PeaColor;
 
-            // 生命周期
-            particleMaterial.Lifetime = 0.5f;
+            // 生命周期 - GpuParticles2D 控制生命周期，不在这里设置
 
-            // 发射数量
-            particleMaterial.Emission = Mathf.Pi * 20f; // 粒子密度
+            // 发射设置通过 GpuParticles2D 的 Amount 属性控制
 
             _hitParticles.ProcessMaterial = particleMaterial;
             _hitParticles.OneShot = true;
@@ -143,7 +140,7 @@ namespace PlantsVsZombies.Scripts.Combat
         private void CreateParticleTexture()
         {
             var particleImage = new Image();
-            particleImage.Create(8, 8, false, Image.Format.Rgba8);
+            particleImage = Image.CreateEmpty(8, 8, false, Image.Format.Rgba8);
 
             // 创建小的圆形粒子
             particleImage.Fill(Colors.Transparent);

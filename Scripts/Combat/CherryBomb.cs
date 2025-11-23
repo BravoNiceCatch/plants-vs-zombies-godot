@@ -71,7 +71,9 @@ namespace PlantsVsZombies.Combat
 			swayAnimation.TrackInsertKey(scaleTrack, 0.5f, Vector3.One * 1.1f);
 			swayAnimation.TrackInsertKey(scaleTrack, 1.0f, Vector3.One * 0.9f);
 			
-			_animationPlayer.AddAnimation("sway", swayAnimation);
+			var swayLibrary = new AnimationLibrary();
+ swayLibrary.AddAnimation("sway", swayAnimation);
+ _animationPlayer.AddAnimationLibrary("sway_library", swayLibrary);
 			
 			// 创建爆炸动画
 			var explodeAnimation = new Animation();
@@ -85,7 +87,9 @@ namespace PlantsVsZombies.Combat
 			explodeAnimation.TrackInsertKey(explodeScaleTrack, 0.3f, Vector3.One * 1.5f);
 			explodeAnimation.TrackInsertKey(explodeScaleTrack, 0.5f, Vector3.Zero);
 			
-			_animationPlayer.AddAnimation("explode", explodeAnimation);
+			var explodeLibrary = new AnimationLibrary();
+ explodeLibrary.AddAnimation("explode", explodeAnimation);
+ _animationPlayer.AddAnimationLibrary("explode_library", explodeLibrary);
 		}
 		
 		public override void _Process(double delta)

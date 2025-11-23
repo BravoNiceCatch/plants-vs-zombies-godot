@@ -1,4 +1,6 @@
 using Godot;
+using PlantsVsZombies.Combat;
+using PlantsVsZombies.Core;
 
 namespace PlantsVsZombies.Effects
 {
@@ -10,8 +12,8 @@ namespace PlantsVsZombies.Effects
 		// 视觉效果组件
 		private Sprite2D _explosionSprite;
 		private Sprite2D _shockwaveSprite;
-		private GPUParticles2D _particleSystem;
-		private Light2D _explosionLight;
+		private GpuParticles2D _particleSystem;
+		// private Light2D _explosionLight; // 暂时禁用
 		
 		// 效果参数
 		private float _radius = 100f;
@@ -59,8 +61,7 @@ namespace PlantsVsZombies.Effects
 			// 创建冲击波精灵
 			_shockwaveSprite = new Sprite2D();
 			_shockwaveSprite.Texture = CreateShockwaveTexture();
-			_shockwaveSprite.Modulate = Colors.White;
-			_shockwaveSprite.Transparency = 0.5f;
+			_shockwaveSprite.Modulate = new Color(1.0f, 1.0f, 1.0f, 0.5f);
 			AddChild(_shockwaveSprite);
 			
 			// 创建粒子系统
@@ -77,7 +78,7 @@ namespace PlantsVsZombies.Effects
 		private ImageTexture CreateExplosionTexture()
 		{
 			var imageSize = 256;
-			var image = Image.Create(imageSize, imageSize, false, Image.Format.Rgba8);
+			var image = Image.CreateEmpty(imageSize, imageSize, false, Image.Format.Rgba8);
 			
 			// 创建径向渐变爆炸效果
 			var center = new Vector2I(imageSize / 2, imageSize / 2);
@@ -113,7 +114,7 @@ namespace PlantsVsZombies.Effects
 		private ImageTexture CreateShockwaveTexture()
 		{
 			var imageSize = 256;
-			var image = Image.Create(imageSize, imageSize, false, Image.Format.Rgba8);
+			var image = Image.CreateEmpty(imageSize, imageSize, false, Image.Format.Rgba8);
 			
 			// 创建环形冲击波效果
 			var center = new Vector2I(imageSize / 2, imageSize / 2);
@@ -148,14 +149,9 @@ namespace PlantsVsZombies.Effects
 		/// </summary>
 		private void CreateParticleSystem()
 		{
-			_particleSystem = new GPUParticles2D();
-			_particleSystem.Amount = 50;
-			_particleSystem.Lifetime = 0.8f;
-			_particleSystem.SpeedScale = 2.0f;
-			_particleSystem.Explosiveness = 1.0f;
-			_particleSystem.Direction = Vector2.Zero;
-			_particleSystem.Spread = 180.0f;
-			_particleSystem.Gravity = Vector2.Zero;
+			_particleSystem = new GpuParticles2D();
+			_particleSystem.OneShot = true;
+			_particleSystem.Emitting = false;
 			
 			// 设置粒子材质
 			var particleMaterial = new ParticleProcessMaterial();
@@ -163,7 +159,7 @@ namespace PlantsVsZombies.Effects
 			particleMaterial.Spread = Mathf.Pi;
 			particleMaterial.InitialVelocityMin = 50.0f;
 			particleMaterial.InitialVelocityMax = 200.0f;
-			particleMaterial.LinearAccel = Vector3.Zero;
+			particleMaterial.LinearAccel = Vector2.Zero;
 			particleMaterial.Color = _normalExplosionColor;
 			particleMaterial.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
 			particleMaterial.EmissionSphereRadius = 20.0f;
@@ -171,7 +167,7 @@ namespace PlantsVsZombies.Effects
 			_particleSystem.ProcessMaterial = particleMaterial;
 			
 			// 设置粒子纹理
-			var particleImage = Image.Create(16, 16, false, Image.Format.Rgba8);
+			var particleImage = Image.CreateEmpty(16, 16, false, Image.Format.Rgba8);
 			particleImage.Fill(Colors.White);
 			var particleTexture = ImageTexture.CreateFromImage(particleImage);
 			_particleSystem.Texture = particleTexture;
@@ -184,14 +180,8 @@ namespace PlantsVsZombies.Effects
 		/// </summary>
 		private void CreateExplosionLight()
 		{
-			_explosionLight = new Light2D();
-			_explosionLight.Texture = new PlaceholderTexture2D();
-			_explosionLight.Energy = 2.0f;
-			_explosionLight.RangeLayerMax = 2;
-			_explosionLight.Color = Colors.White;
-			_explosionLight.Enabled = false; // 初始时关闭
-			
-			AddChild(_explosionLight);
+			// Light2D 在 Godot 4.x 中暂时禁用
+			// 如果需要光源效果，可以后续实现
 		}
 		
 		/// <summary>
@@ -236,10 +226,10 @@ namespace PlantsVsZombies.Effects
 		/// </summary>
 		private void StartEffects()
 		{
-			// 开启光源
-			_explosionLight.Enabled = true;
+			// 光源效果暂时禁用
+			/*_explosionLight.Enabled = true;
 			_explosionLight.Energy = 3.0f;
-			
+
 			// 根据爆炸类型设置光源颜色
 			switch (_explosionType)
 			{
@@ -253,7 +243,7 @@ namespace PlantsVsZombies.Effects
 				default:
 					_explosionLight.Color = Colors.White;
 					break;
-			}
+			}*/
 			
 			// 开始粒子效果
 			_particleSystem.Emitting = true;
@@ -282,11 +272,11 @@ namespace PlantsVsZombies.Effects
 			_explosionSprite.Modulate = new Color(_explosionSprite.Modulate.R, _explosionSprite.Modulate.G, _explosionSprite.Modulate.B, alpha);
 			
 			// 更新冲击波
-			_shockwaveSprite.Transparency = alpha * 0.5f;
+			_shockwaveSprite.Modulate = new Color(1.0f, 1.0f, 1.0f, alpha * 0.5f);
 			_shockwaveSprite.Scale = new Vector2(1.0f + progress * 2.0f, 1.0f + progress * 2.0f);
 			
-			// 更新光源强度（逐渐减弱）
-			_explosionLight.Energy = Mathf.Lerp(3.0f, 0.0f, progress * progress);
+			// 更新光源强度（逐渐减弱）- 暂时禁用
+			// _explosionLight.Energy = Mathf.Lerp(3.0f, 0.0f, progress * progress);
 			
 			// 粒子效果会自动停止
 			if (progress >= 0.6f)
@@ -313,7 +303,7 @@ namespace PlantsVsZombies.Effects
 		{
 			_isPlaying = false;
 			_particleSystem.Emitting = false;
-			_explosionLight.Enabled = false;
+			// _explosionLight.Enabled = false; // 暂时禁用
 			
 			// 延迟销毁对象，确保效果完全播放完
 			GetTree().CreateTimer(0.2f).Timeout += QueueFree;

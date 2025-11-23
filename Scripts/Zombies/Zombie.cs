@@ -1,5 +1,6 @@
 using Godot;
 using PlantsVsZombies.Plants;
+using PlantsVsZombies.Core;
 
 namespace PlantsVsZombies.Zombies
 {
@@ -87,6 +88,12 @@ namespace PlantsVsZombies.Zombies
 			// 创建动画播放器
 			animationPlayer = new AnimationPlayer();
 			AddChild(animationPlayer);
+		}
+
+		protected virtual void SetupMovement()
+		{
+			// 设置移动相关的初始化
+			// 暂时为空实现，子类可以重写
 		}
 
 		protected virtual void MoveForward(float delta)

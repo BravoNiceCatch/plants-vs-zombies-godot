@@ -3,7 +3,7 @@ issue: 6
 stream: 战斗和投射物系统
 agent: backend-specialist
 started: 2025-11-23T03:15:05Z
-status: in_progress
+status: completed
 ---
 
 # Stream B: 战斗和投射物系统
