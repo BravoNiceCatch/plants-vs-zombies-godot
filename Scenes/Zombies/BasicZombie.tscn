@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8x4ywhr2vktw"]
+
+[ext_resource type="Script" path="res://Scripts/Zombies/BasicZombie.cs" id="1_0v4xf"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1v4xf"]
+size = Vector2(30, 50)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2w8yv"]
+radius = 40.0
+
+[node name="BasicZombie" type="Node2D"]
+script = ExtResource("1_0v4xf")
+position = Vector2(0, 0)
+rotation = 0.0
+scale = Vector2(1, 1)
+
+[node name="CollisionArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CollisionArea"]
+shape = SubResource("RectangleShape2D_1v4xf")
+
+[node name="DetectionArea" type="Area2D" parent="."]
+
+[node name="DetectionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+shape = SubResource("CircleShape2D_2w8yv")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -15)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
