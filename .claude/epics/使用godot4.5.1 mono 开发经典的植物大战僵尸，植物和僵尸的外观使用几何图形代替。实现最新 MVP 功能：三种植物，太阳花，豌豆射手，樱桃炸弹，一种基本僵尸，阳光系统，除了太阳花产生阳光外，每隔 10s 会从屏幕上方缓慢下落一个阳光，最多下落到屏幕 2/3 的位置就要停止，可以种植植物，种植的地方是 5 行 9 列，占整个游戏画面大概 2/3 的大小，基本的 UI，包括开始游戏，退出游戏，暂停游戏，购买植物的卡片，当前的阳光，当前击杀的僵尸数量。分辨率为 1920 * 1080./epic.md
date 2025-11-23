@@ -4,7 +4,7 @@ status: backlog
 created: 2025-11-23T00:43:34Z
 progress: 0%
 prd: .claude/prds/使用godot4.5.1 mono 开发经典的植物大战僵尸，植物和僵尸的外观使用几何图形代替。实现最新 MVP 功能：三种植物，太阳花，豌豆射手，樱桃炸弹，一种基本僵尸，阳光系统，除了太阳花产生阳光外，每隔 10s 会从屏幕上方缓慢下落一个阳光，最多下落到屏幕 2/3 的位置就要停止，可以种植植物，种植的地方是 5 行 9 列，占整个游戏画面大概 2/3 的大小，基本的 UI，包括开始游戏，退出游戏，暂停游戏，购买植物的卡片，当前的阳光，当前击杀的僵尸数量。分辨率为 1920 * 1080..md
-github: [Will be updated when synced to GitHub]
+github: https://github.com/BravoNiceCatch/plants-vs-zombies-godot/issues/1
 ---
 
 # Epic: 使用 Godot 4.5.1 Mono 开发经典植物大战僵尸 MVP 版本

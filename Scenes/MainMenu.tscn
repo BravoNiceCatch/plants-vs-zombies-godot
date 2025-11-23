@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://cse8onj60pqj3"]
+
+[ext_resource type="Script" uid="uid://6j5swg86il3u" path="res://Scripts/UI/MainMenu.cs" id="1_tt5f1"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_tt5f1")

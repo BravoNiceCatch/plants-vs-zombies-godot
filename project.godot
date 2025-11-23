@@ -13,6 +13,10 @@ config_version=5
 config/name="植物大战僵尸"
 config/features=PackedStringArray("4.5", "C#")
 config/icon="res://icon.svg"
+run/window_mode="windowed"
+run/size/viewport_width=1920
+run/size/viewport_height=1080
+run/size/resizable=false
 
 [autoload]
 
