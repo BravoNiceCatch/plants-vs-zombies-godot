@@ -1,4 +1,5 @@
 using Godot;
+using PlantsVsZombies.Game;
 
 namespace PlantsVsZombies.Core
 {

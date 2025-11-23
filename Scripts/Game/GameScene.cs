@@ -36,10 +36,10 @@ namespace PlantsVsZombies.Game
                     // 添加边框
                     var styleBox = new StyleBoxFlat();
                     styleBox.BorderColor = Colors.DarkGreen;
-                    styleBox.BorderSizeLeft = 2;
-                    styleBox.BorderSizeRight = 2;
-                    styleBox.BorderSizeTop = 2;
-                    styleBox.BorderSizeBottom = 2;
+                    styleBox.BorderWidthLeft = 2;
+                    styleBox.BorderWidthRight = 2;
+                    styleBox.BorderWidthTop = 2;
+                    styleBox.BorderWidthBottom = 2;
                     slot.AddThemeStyleboxOverride("panel", styleBox);
                     
                     _gameGrid.AddChild(slot);

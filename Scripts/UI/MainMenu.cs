@@ -16,7 +16,7 @@ namespace PlantsVsZombies.UI
         private void InitializeUI()
         {
             // 设置UI基础布局
-            SetAnchorsAndOffsetsPreset(Control.Preset.FullRect);
+            Size = new Vector2I(1920, 1080);
             
             // 创建开始按钮
             _startButton = new Button();
