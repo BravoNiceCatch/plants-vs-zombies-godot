@@ -1,18 +1,25 @@
 using Godot;
+using Plants大战僵尸.Scripts.Plants;
+using Plants大战僵尸.Scripts.Game;
+using System;
 
 namespace PlantsVsZombies.UI
 {
 	/// <summary>
 	/// 植物卡片组件 - 用于显示可选择的植物
+	/// 集成了阳光成本检查、购买逻辑和冷却管理
 	/// </summary>
 	public partial class PlantCard : Control
 	{
-		[Export] public string PlantName { get; set; } = "未知植物";
-		[Export] public int SunCost { get; set; } = 50;
-		[Export] public float CooldownTime { get; set; } = 5.0f;
-		[Export] public string Description { get; set; } = "植物描述";
+		[Export] public PlantType PlantType { get; set; } = PlantType.None;
 		[Export] public Texture2D PlantIcon { get; set; }
 		[Export] public PackedScene PlantScene { get; set; }
+
+		// 植物信息（从 PlantType 获取）
+		public string PlantName => PlantType.GetDisplayName();
+		public int SunCost => PlantType.GetSunCost();
+		public float CooldownTime => PlantType.GetCooldownTime();
+		public string Description => PlantType.GetDescription();
 
 		// UI组件
 		private Panel _backgroundPanel;
@@ -24,26 +31,34 @@ namespace PlantsVsZombies.UI
 		private AnimationPlayer _animationPlayer;
 		private ProgressBar _cooldownBar;
 
+		// 系统引用
+		private PlantPurchaseSystem _purchaseSystem;
+		private SunlightManager _sunlightManager;
+
 		// 状态
 		private bool _isAvailable = true;
 		private bool _isOnCooldown = false;
 		private float _currentCooldown = 0f;
 		private bool _isSelected = false;
+		private int _currentSunlight = 0;
 
 		// 信号
 		[Signal] public delegate void CardSelectedEventHandler(PlantCard card);
 		[Signal] public delegate void CardDeselectedEventHandler(PlantCard card);
+		[Signal] public delegate void PlantPurchaseRequestedEventHandler(PlantType plantType, Vector2Int gridPosition);
 
 		public override void _Ready()
 		{
 			InitializeComponents();
 			SetupVisuals();
 			ConnectSignals();
+			FindSystemReferences();
 		}
 
 		public override void _Process(double delta)
 		{
 			UpdateCooldown((float)delta);
+			UpdateAvailability();
 		}
 
 		/// <summary>
@@ -117,14 +132,52 @@ namespace PlantsVsZombies.UI
 		}
 
 		/// <summary>
+		/// 查找系统引用
+		/// </summary>
+		private void FindSystemReferences()
+		{
+			// 查找植物购买系统
+			var gameManager = GameManager.Instance;
+			if (gameManager != null)
+			{
+				_purchaseSystem = gameManager.GetNode<PlantPurchaseSystem>("PlantPurchaseSystem");
+				if (_purchaseSystem == null)
+				{
+					GD.PrintErr("无法找到 PlantPurchaseSystem");
+				}
+
+				// 查找阳光管理器
+				_sunlightManager = gameManager.GetNode<SunlightManager>("SunlightManager");
+				if (_sunlightManager != null)
+				{
+					// 订阅阳光变化事件
+					_sunlightManager.OnSunlightChanged += OnSunlightChanged;
+					_currentSunlight = _sunlightManager.CurrentSunlight;
+				}
+				else
+				{
+					GD.PrintErr("无法找到 SunlightManager");
+				}
+			}
+
+			// 如果找到购买系统，连接事件
+			if (_purchaseSystem != null)
+			{
+				_purchaseSystem.OnPlantSelected += OnPlantPurchaseSystemSelected;
+				_purchaseSystem.OnPlantDeselected += OnPlantPurchaseSystemDeselected;
+			}
+		}
+
+		/// <summary>
 		/// 设置视觉效果
 		/// </summary>
 		private void SetupVisuals()
 		{
 			// 设置背景样式
 			var styleBox = new StyleBoxFlat();
-			styleBox.BgColor = new Color(0.2f, 0.3f, 0.2f, 0.9f);
-			styleBox.BorderColor = Colors.DarkGreen;
+			styleBox.BgColor = PlantType.GetPrimaryColor();
+			styleBox.BgColor = styleBox.BgColor.Darkened(0.3f);
+			styleBox.BorderColor = PlantType.GetSecondaryColor();
 			styleBox.BorderWidthLeft = 2;
 			styleBox.BorderWidthRight = 2;
 			styleBox.BorderWidthTop = 2;
@@ -148,6 +201,9 @@ namespace PlantsVsZombies.UI
 			{
 				_iconRect.Texture = CreateDefaultPlantIcon();
 			}
+
+			// 设置工具提示
+			TooltipText = $"{PlantName}\n{Description}\n阳光成本: {SunCost}\n冷却时间: {CooldownTime}秒";
 		}
 
 		/// <summary>
@@ -200,21 +256,179 @@ namespace PlantsVsZombies.UI
 		private Texture2D CreateDefaultPlantIcon()
 		{
 			var image = Image.CreateEmpty(80, 60, false, Image.Format.Rgba8);
+			var primaryColor = PlantType.GetPrimaryColor();
+			var secondaryColor = PlantType.GetSecondaryColor();
 
-			// 创建简单的叶子形状
+			// 根据植物类型创建不同的图标
+			switch (PlantType)
+			{
+				case PlantType.Sunflower:
+					DrawSunflowerIcon(image, primaryColor, secondaryColor);
+					break;
+				case PlantType.Peashooter:
+					DrawPeashooterIcon(image, primaryColor, secondaryColor);
+					break;
+				case PlantType.CherryBomb:
+					DrawCherryBombIcon(image, primaryColor, secondaryColor);
+					break;
+				default:
+					DrawDefaultLeafIcon(image, primaryColor);
+					break;
+			}
+
+			return ImageTexture.CreateFromImage(image);
+		}
+
+		/// <summary>
+		/// 绘制太阳花图标
+		/// </summary>
+		private void DrawSunflowerIcon(Image image, Color primaryColor, Color secondaryColor)
+		{
+			var center = new Vector2I(40, 30);
+
+			// 绘制花瓣
+			for (int i = 0; i < 8; i++)
+			{
+				var angle = (float)i / 8 * Mathf.Tau;
+				var petalCenter = center + new Vector2I(
+					(int)(Mathf.Cos(angle) * 15),
+					(int)(Mathf.Sin(angle) * 15)
+				);
+
+				for (int x = 0; x < 80; x++)
+				{
+					for (int y = 0; y < 60; y++)
+					{
+						var pos = new Vector2I(x, y);
+						var dist = pos.DistanceTo(petalCenter);
+						if (dist <= 8f)
+						{
+							image.SetPixel(x, y, secondaryColor);
+						}
+					}
+				}
+			}
+
+			// 绘制中心
 			for (int x = 0; x < 80; x++)
 			{
 				for (int y = 0; y < 60; y++)
 				{
-					var center = new Vector2I(40, 30);
+					var pos = new Vector2I(x, y);
+					var dist = pos.DistanceTo(center);
+					if (dist <= 10f)
+					{
+						image.SetPixel(x, y, primaryColor);
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// 绘制豌豆射手图标
+		/// </summary>
+		private void DrawPeashooterIcon(Image image, Color primaryColor, Color secondaryColor)
+		{
+			var center = new Vector2I(40, 30);
+
+			// 绘制主体（椭圆形）
+			for (int x = 0; x < 80; x++)
+			{
+				for (int y = 0; y < 60; y++)
+				{
+					var pos = new Vector2I(x, y);
+					var distX = Mathf.Abs(pos.X - center.X) / 20f;
+					var distY = Mathf.Abs(pos.Y - center.Y) / 15f;
+					var dist = Mathf.Sqrt(distX * distX + distY * distY);
+
+					if (dist <= 1f)
+					{
+						image.SetPixel(x, y, primaryColor);
+					}
+				}
+			}
+
+			// 绘制嘴巴（深绿色）
+			for (int x = center.X + 15; x < center.X + 25; x++)
+			{
+				for (int y = center.Y - 5; y < center.Y + 5; y++)
+				{
+					if (x >= 0 && x < 80 && y >= 0 && y < 60)
+					{
+						image.SetPixel(x, y, secondaryColor.Darkened(0.3f));
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// 绘制樱桃炸弹图标
+		/// </summary>
+		private void DrawCherryBombIcon(Image image, Color primaryColor, Color secondaryColor)
+		{
+			// 绘制两个圆形樱桃
+			var leftCenter = new Vector2I(30, 35);
+			var rightCenter = new Vector2I(50, 35);
+
+			// 左樱桃
+			for (int x = 0; x < 80; x++)
+			{
+				for (int y = 0; y < 60; y++)
+				{
+					var pos = new Vector2I(x, y);
+					if (pos.DistanceTo(leftCenter) <= 12f)
+					{
+						image.SetPixel(x, y, primaryColor);
+					}
+					else if (pos.DistanceTo(rightCenter) <= 12f)
+					{
+						image.SetPixel(x, y, primaryColor);
+					}
+				}
+			}
+
+			// 绘制导火索
+			for (int y = 15; y < 25; y++)
+			{
+				if (y >= 0 && y < 60)
+				{
+					image.SetPixel(39, y, secondaryColor);
+					image.SetPixel(40, y, secondaryColor);
+					image.SetPixel(41, y, secondaryColor);
+				}
+			}
+
+			// 绘制火花
+			for (int x = 35; x < 45; x++)
+			{
+				for (int y = 10; y < 18; y++)
+				{
+					if (x >= 0 && x < 80 && y >= 0 && y < 60)
+					{
+						image.SetPixel(x, y, Colors.Yellow);
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// 绘制默认叶子图标
+		/// </summary>
+		private void DrawDefaultLeafIcon(Image image, Color primaryColor)
+		{
+			var center = new Vector2I(40, 30);
+
+			for (int x = 0; x < 80; x++)
+			{
+				for (int y = 0; y < 60; y++)
+				{
 					var pos = new Vector2I(x, y);
 					var dist = pos.DistanceTo(center);
 
 					if (dist <= 20f)
 					{
 						var intensity = 1.0f - (dist / 20f);
-						var green = 0.3f + intensity * 0.7f;
-						var color = new Color(0.1f, green, 0.1f, 1.0f);
+						var color = primaryColor.Darkened(1.0f - intensity);
 						image.SetPixel(x, y, color);
 					}
 					else
@@ -223,8 +437,6 @@ namespace PlantsVsZombies.UI
 					}
 				}
 			}
-
-			return ImageTexture.CreateFromImage(image);
 		}
 
 		/// <summary>
@@ -244,7 +456,7 @@ namespace PlantsVsZombies.UI
 		{
 			if (@event is InputEventMouseButton mouseEvent && mouseEvent.Pressed)
 			{
-				if (mouseEvent.ButtonIndex == MouseButton.Left && _isAvailable && !_isOnCooldown)
+				if (mouseEvent.ButtonIndex == MouseButton.Left && IsCardClickable())
 				{
 					SelectCard();
 				}
@@ -256,7 +468,7 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		private void OnMouseEntered()
 		{
-			if (_isAvailable && !_isOnCooldown)
+			if (IsCardClickable())
 			{
 				_backgroundPanel.Modulate = new Color(1.2f, 1.2f, 1.0f, 1.0f);
 				Scale = new Vector2(1.05f, 1.05f);
@@ -270,9 +482,17 @@ namespace PlantsVsZombies.UI
 		{
 			if (!_isSelected)
 			{
-				_backgroundPanel.Modulate = Colors.White;
+				UpdateCardAppearance();
 				Scale = Vector2.One;
 			}
+		}
+
+		/// <summary>
+		/// 检查卡片是否可点击
+		/// </summary>
+		private bool IsCardClickable()
+		{
+			return _isAvailable && !_isOnCooldown && PlantType.IsValidPlant();
 		}
 
 		/// <summary>
@@ -280,12 +500,17 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		public void SelectCard()
 		{
-			if (!_isAvailable || _isOnCooldown)
+			if (!IsCardClickable())
 				return;
 
+			// 通知购买系统
+			if (_purchaseSystem != null)
+			{
+				_purchaseSystem.SelectPlant(PlantType);
+			}
+
 			_isSelected = true;
-			_backgroundPanel.Modulate = new Color(1.0f, 1.0f, 0.5f, 1.0f); // 金色高亮
-			Scale = new Vector2(1.1f, 1.1f);
+			UpdateCardAppearance();
 
 			EmitSignal(SignalName.CardSelected, this);
 			PlaySelectAnimation();
@@ -297,8 +522,7 @@ namespace PlantsVsZombies.UI
 		public void DeselectCard()
 		{
 			_isSelected = false;
-			_backgroundPanel.Modulate = Colors.White;
-			Scale = Vector2.One;
+			UpdateCardAppearance();
 
 			EmitSignal(SignalName.CardDeselected, this);
 		}
@@ -308,13 +532,25 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		public void StartCooldown()
 		{
-			_isOnCooldown = true;
-			_currentCooldown = CooldownTime;
-			_cooldownLabel.Visible = true;
-			_cooldownBar.Visible = true;
-			_isAvailable = false;
+			if (_purchaseSystem != null)
+			{
+				_currentCooldown = _purchaseSystem.GetRemainingCooldown(PlantType);
+			}
+			else
+			{
+				_currentCooldown = CooldownTime;
+			}
 
-			UpdateCooldownDisplay();
+			if (_currentCooldown > 0)
+			{
+				_isOnCooldown = true;
+				_cooldownLabel.Visible = true;
+				_cooldownBar.Visible = true;
+				_cooldownBar.MaxValue = CooldownTime;
+				_isAvailable = false;
+
+				UpdateCooldownDisplay();
+			}
 		}
 
 		/// <summary>
@@ -337,11 +573,70 @@ namespace PlantsVsZombies.UI
 					// 如果未被选中，恢复正常颜色
 					if (!_isSelected)
 					{
-						_backgroundPanel.Modulate = Colors.White;
+						UpdateCardAppearance();
 					}
 				}
 
 				UpdateCooldownDisplay();
+			}
+		}
+
+		/// <summary>
+		/// 更新可用性
+		/// </summary>
+		private void UpdateAvailability()
+		{
+			// 检查购买系统中的可用性
+			if (_purchaseSystem != null)
+			{
+				_isAvailable = _purchaseSystem.CanPurchasePlant(PlantType);
+				_currentCooldown = _purchaseSystem.GetRemainingCooldown(PlantType);
+				_isOnCooldown = _currentCooldown > 0;
+			}
+			else
+			{
+				// 降级处理：基于阳光数量判断
+				_isAvailable = _currentSunlight >= SunCost && !_isOnCooldown;
+			}
+
+			UpdateCardAppearance();
+		}
+
+		/// <summary>
+		/// 更新卡片外观
+		/// </summary>
+		private void UpdateCardAppearance()
+		{
+			if (_isSelected)
+			{
+				// 选中状态 - 金色高亮
+				_backgroundPanel.Modulate = new Color(1.0f, 1.0f, 0.5f, 1.0f);
+				return;
+			}
+
+			if (_isOnCooldown)
+			{
+				// 冷却状态 - 灰色
+				_backgroundPanel.Modulate = new Color(0.6f, 0.6f, 0.6f, 0.7f);
+				_costLabel.Modulate = Colors.Gray;
+				_nameLabel.Modulate = Colors.Gray;
+				_iconRect.Modulate = new Color(0.7f, 0.7f, 0.7f, 1.0f);
+			}
+			else if (!_isAvailable)
+			{
+				// 阳光不足状态 - 暗红色
+				_backgroundPanel.Modulate = new Color(0.4f, 0.2f, 0.2f, 0.8f);
+				_costLabel.Modulate = Colors.Red;
+				_nameLabel.Modulate = Colors.Red;
+				_iconRect.Modulate = new Color(0.8f, 0.6f, 0.6f, 1.0f);
+			}
+			else
+			{
+				// 可用状态 - 正常颜色
+				_backgroundPanel.Modulate = Colors.White;
+				_costLabel.Modulate = Colors.Yellow;
+				_nameLabel.Modulate = Colors.White;
+				_iconRect.Modulate = Colors.White;
 			}
 		}
 
@@ -396,7 +691,7 @@ namespace PlantsVsZombies.UI
 			animation.TrackInsertKey(scaleTrack, 0.3f, Vector2.One);
 
 			var modulateTrack = animation.AddTrack(Animation.TrackType.Value, 0);
-			animation.TrackSetPath(modulateTrack, GetPath());
+			animation.TrackSetPath(modulateTrack, ".");
 			animation.TrackInsertKey(modulateTrack, 0.0f, new Color(1.0f, 1.0f, 0.5f, 1.0f));
 			animation.TrackInsertKey(modulateTrack, 0.15f, new Color(1.0f, 0.8f, 0.2f, 0.8f));
 			animation.TrackInsertKey(modulateTrack, 0.3f, Colors.White);
@@ -407,73 +702,37 @@ namespace PlantsVsZombies.UI
 			_animationPlayer.Play("use");
 		}
 
+		// 事件处理方法
+		private void OnSunlightChanged(int newSunlight)
+		{
+			_currentSunlight = newSunlight;
+			UpdateAvailability();
+		}
+
+		private void OnPlantPurchaseSystemSelected(PlantType selectedPlantType)
+		{
+			if (selectedPlantType != PlantType)
+			{
+				DeselectCard();
+			}
+		}
+
+		private void OnPlantPurchaseSystemDeselected()
+		{
+			DeselectCard();
+		}
+
 		// 公共属性
 		public bool IsAvailable => _isAvailable;
 		public bool IsOnCooldown => _isOnCooldown;
 		public bool IsSelected => _isSelected;
 
 		/// <summary>
-		/// 根据阳光数量更新卡片可用性
-		/// </summary>
-		public void UpdateAvailability(int currentSun)
-		{
-			if (_isOnCooldown)
-			{
-				// 如果在冷却中，保持不可用状态
-				_isAvailable = false;
-			}
-			else
-			{
-				// 根据阳光数量判断是否可用
-				_isAvailable = currentSun >= SunCost;
-			}
-
-			UpdateCardAppearance();
-		}
-
-		/// <summary>
-		/// 更新卡片外观
-		/// </summary>
-		private void UpdateCardAppearance()
-		{
-			if (_isSelected)
-			{
-				// 选中状态保持不变
-				return;
-			}
-
-			if (_isOnCooldown)
-			{
-				// 冷却状态 - 灰色
-				_backgroundPanel.Modulate = new Color(0.6f, 0.6f, 0.6f, 0.7f);
-				_costLabel.Modulate = Colors.Gray;
-				_nameLabel.Modulate = Colors.Gray;
-				_iconRect.Modulate = new Color(0.7f, 0.7f, 0.7f, 1.0f);
-			}
-			else if (!_isAvailable)
-			{
-				// 阳光不足状态 - 暗红色
-				_backgroundPanel.Modulate = new Color(0.4f, 0.2f, 0.2f, 0.8f);
-				_costLabel.Modulate = Colors.Red;
-				_nameLabel.Modulate = Colors.Red;
-				_iconRect.Modulate = new Color(0.8f, 0.6f, 0.6f, 1.0f);
-			}
-			else
-			{
-				// 可用状态 - 正常颜色
-				_backgroundPanel.Modulate = Colors.White;
-				_costLabel.Modulate = Colors.Yellow;
-				_nameLabel.Modulate = Colors.White;
-				_iconRect.Modulate = Colors.White;
-			}
-		}
-
-		/// <summary>
 		/// 检查卡片是否可购买（包括冷却和阳光检查）
 		/// </summary>
 		public bool CanAfford(int currentSun)
 		{
-			return _isAvailable && !_isOnCooldown && currentSun >= SunCost;
+			return _isAvailable && !_isOnCooldown && currentSun >= SunCost && PlantType.IsValidPlant();
 		}
 
 		/// <summary>
@@ -490,6 +749,7 @@ namespace PlantsVsZombies.UI
 			_cooldownBar.Value = 0;
 			UpdateCardAppearance();
 		}
+
 		public PackedScene PlantPrefab => PlantScene;
 	}
 }
