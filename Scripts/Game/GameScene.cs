@@ -9,7 +9,7 @@ namespace PlantsVsZombies.Game
 {
 	public partial class GameScene : Node2D
 	{
-		private GridContainer _gameGrid;
+		private Control _gameGrid;
 		private Label _zombieCountLabel;
 		private Label _combatStatsLabel;
 		private int _zombieKillCount = 0; // 击杀僵尸数
@@ -53,13 +53,25 @@ namespace PlantsVsZombies.Game
 			// 创建新的UI组件
 			InitializeNewUIComponents();
 
-			// 创建游戏网格 (5行9列)
-			_gameGrid = new GridContainer();
-			_gameGrid.Columns = 9;
-			_gameGrid.Position = new Vector2I(300, 180); // 调整位置以适应新的UI布局
+			// 创建游戏网格容器 (使用 Control 容器完全控制布局)
+			_gameGrid = new Control();
+			_gameGrid.Name = "GameGrid";
+
+			// 计算网格容器位置以居中显示，并确保与植物卡片UI有清晰的视觉分离
+			var slotSize = 170; // 170x170 像素格子，更大更明显的显示
+			var gridWidth = 9 * slotSize; // 1530 像素
+			var gridHeight = 5 * slotSize; // 850 像素
+			var gridPosX = (1920 - gridWidth) / 2; // 195 像素，水平居中
+			// 进一步调整垂直位置：为植物卡片UI（高度160px + 40px间距）留出充足空间，确保完全分离
+			var gridPosY = 220; // 进一步向下移动，确保与植物卡片UI有清晰的视觉分离
+
+			// 设置网格容器大小和位置
+			_gameGrid.Size = new Vector2I(gridWidth, gridHeight);
+			_gameGrid.Position = new Vector2I(gridPosX, gridPosY);
+
 			AddChild(_gameGrid);
 
-			// 创建草坪格子
+			// 手动创建和定位草坪格子（不使用 GridContainer）
 			for (int row = 0; row < 5; row++)
 			{
 				for (int col = 0; col < 9; col++)
@@ -67,6 +79,11 @@ namespace PlantsVsZombies.Game
 					var lawnSlot = new LawnSlot();
 					lawnSlot.GridPosition = new Vector2I(col, row);
 					lawnSlot.Name = $"LawnSlot_{row}_{col}";
+
+					// 直接设置每个格子的位置和大小
+					lawnSlot.Position = new Vector2I(col * slotSize, row * slotSize);
+					lawnSlot.Size = new Vector2I(slotSize, slotSize);
+					lawnSlot.CustomMinimumSize = new Vector2I(slotSize, slotSize);
 
 					_gameGrid.AddChild(lawnSlot);
 				}
@@ -97,8 +114,8 @@ namespace PlantsVsZombies.Game
 			// 创建阳光计数器
 			_sunCounter = new SunCounter();
 			_sunCounter.Position = new Vector2I(50, 20);
-			_sunCounter.SetSun(50); // 初始阳光
-			AddChild(_sunCounter);
+			AddChild(_sunCounter); // 先添加到场景树，确保 _Ready() 被调用
+			_sunCounter.SetSun(50); // 然后设置初始阳光值
 
 			// 创建植物卡片选择器
 			_plantCardSelector = new PlantCardSelector();
@@ -431,12 +448,12 @@ namespace PlantsVsZombies.Game
 		/// <returns>世界位置</returns>
 		private Vector2 GridToWorldPosition(Vector2I gridPosition)
 		{
-			var slotSize = new Vector2I(120, 120);
-			var gridOffset = new Vector2I(300, 150);
-			
+			// 使用新的 170x170 格子大小
+			var slotSize = new Vector2I(170, 170);
+
 			return new Vector2(
-				gridOffset.X + gridPosition.X * slotSize.X + slotSize.X / 2,
-				gridOffset.Y + gridPosition.Y * slotSize.Y + slotSize.Y / 2
+				_gameGrid.Position.X + gridPosition.X * slotSize.X + slotSize.X / 2,
+				_gameGrid.Position.Y + gridPosition.Y * slotSize.Y + slotSize.Y / 2
 			);
 		}
 		
@@ -534,12 +551,12 @@ namespace PlantsVsZombies.Game
 		/// <returns>网格位置</returns>
 		private Vector2I WorldToGridPosition(Vector2 worldPosition)
 		{
-			var slotSize = new Vector2I(120, 120);
-			var gridOffset = new Vector2I(300, 150);
-			
-			var gridX = (int)((worldPosition.X - gridOffset.X) / slotSize.X);
-			var gridY = (int)((worldPosition.Y - gridOffset.Y) / slotSize.Y);
-			
+			// 与 GridToWorldPosition 对应，使用新的 170x170 格子大小
+			var slotSize = new Vector2I(170, 170);
+
+			var gridX = (int)((worldPosition.X - _gameGrid.Position.X) / slotSize.X);
+			var gridY = (int)((worldPosition.Y - _gameGrid.Position.Y) / slotSize.Y);
+
 			return new Vector2I(gridX, gridY);
 		}
 		

@@ -1,6 +1,7 @@
 using Godot;
 using Plants大战僵尸.Scripts.Plants;
 using Plants大战僵尸.Scripts.Game;
+using PlantsVsZombies.Core;
 using System;
 
 namespace PlantsVsZombies.UI
@@ -45,7 +46,7 @@ namespace PlantsVsZombies.UI
 		// 信号
 		[Signal] public delegate void CardSelectedEventHandler(PlantCard card);
 		[Signal] public delegate void CardDeselectedEventHandler(PlantCard card);
-		[Signal] public delegate void PlantPurchaseRequestedEventHandler(PlantType plantType, Vector2Int gridPosition);
+		[Signal] public delegate void PlantPurchaseRequestedEventHandler(PlantType plantType, int gridX, int gridY);
 
 		public override void _Ready()
 		{

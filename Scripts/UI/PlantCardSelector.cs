@@ -1,6 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 using PlantsVsZombies.Game;
+using Plants大战僵尸.Scripts.Plants;
 
 namespace PlantsVsZombies.UI
 {
@@ -114,10 +115,7 @@ namespace PlantsVsZombies.UI
         private PlantCard CreateSunflowerCard()
         {
             var card = new PlantCard();
-            card.PlantName = "向日葵";
-            card.SunCost = 50;
-            card.CooldownTime = 7.5f;
-            card.Description = "生产阳光的经济型植物";
+            card.PlantType = PlantType.Sunflower;
             card.PlantScene = GD.Load<PackedScene>("res://Scenes/Plants/Sunflower.tscn");
 
             return card;
@@ -129,10 +127,7 @@ namespace PlantsVsZombies.UI
         private PlantCard CreatePeashooterCard()
         {
             var card = new PlantCard();
-            card.PlantName = "豌豆射手";
-            card.SunCost = 100;
-            card.CooldownTime = 7.5f;
-            card.Description = "基础攻击植物";
+            card.PlantType = PlantType.Peashooter;
             card.PlantScene = GD.Load<PackedScene>("res://Scenes/Plants/Peashooter.tscn");
 
             return card;
@@ -144,10 +139,7 @@ namespace PlantsVsZombies.UI
         private PlantCard CreateCherryBombCard()
         {
             var card = new PlantCard();
-            card.PlantName = "樱桃炸弹";
-            card.SunCost = 150;
-            card.CooldownTime = 50.0f; // 很长的冷却时间
-            card.Description = "一次性的范围伤害";
+            card.PlantType = PlantType.CherryBomb;
             card.PlantScene = GD.Load<PackedScene>("res://Scenes/Plants/CherryBomb.tscn");
 
             return card;
@@ -159,10 +151,7 @@ namespace PlantsVsZombies.UI
         private PlantCard CreateWallNutCard()
         {
             var card = new PlantCard();
-            card.PlantName = "坚果墙";
-            card.SunCost = 50;
-            card.CooldownTime = 30.0f;
-            card.Description = "防御型植物，阻挡僵尸";
+            card.PlantType = PlantType.None; // 暂时使用None，因为WallNut尚未实现
             // card.PlantScene = GD.Load<PackedScene>("res://Scenes/Plants/WallNut.tscn");
 
             return card;

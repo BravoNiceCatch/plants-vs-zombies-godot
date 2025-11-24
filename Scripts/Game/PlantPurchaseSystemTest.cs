@@ -1,6 +1,7 @@
 using Godot;
 using Plants大战僵尸.Scripts.Plants;
 using Plants大战僵尸.Scripts.Game;
+using PlantsVsZombies.Core;
 using System;
 
 namespace Plants大战僵尸.Scripts.Game
@@ -222,6 +223,7 @@ namespace Plants大战僵尸.Scripts.Game
 
             // 验证事件触发
             GD.Print($"植物选择事件是否触发: {plantSelectedFired}");
+            GD.Print($"植物购买事件是否触发: {plantPurchasedFired}");
             GD.Print($"阳光变化事件是否触发: {sunlightChangedFired}");
 
             // 测试系统状态

@@ -20,12 +20,13 @@ namespace PlantsVsZombies.Zombies
 		private int zombiesSpawned = 0;
 		private bool isSpawningWave = false;
 
-		// 网格系统常量
+		// 网格系统常量 - 适配 1920x1080 分辨率
+		// 种植区域目标：占游戏画面约 2/3，即 1280 x 720 像素
 		public const int GRID_ROWS = 5;
 		public const int GRID_COLUMNS = 9;
-		public const int CELL_SIZE = 120; // 每个网格单元的像素大小
-		public const int GRID_START_X = 300;
-		public const int GRID_START_Y = 150;
+		public const int CELL_SIZE = 140; // 每个网格单元的像素大小 (140x140)
+		public const int GRID_START_X = 330; // (1920 - 9*140) / 2 = 330，水平居中
+		public const int GRID_START_Y = 190; // (1080 - 5*140) / 2 = 190，垂直居中
 
 		public override void _Ready()
 		{

@@ -239,6 +239,9 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		private void CreateAnimations()
 		{
+			// 创建统一的动画库
+			var animLib = new AnimationLibrary();
+
 			// 显示动画
 			var showAnimation = new Animation();
 			showAnimation.Length = 0.3f;
@@ -253,9 +256,7 @@ namespace PlantsVsZombies.UI
 			showAnimation.TrackInsertKey(modulateTrack, 0.0f, new Color(1, 1, 1, 0));
 			showAnimation.TrackInsertKey(modulateTrack, 0.3f, new Color(1, 1, 1, 1));
 
-			var showAnimLib = new AnimationLibrary();
-			showAnimLib.AddAnimation("show", showAnimation);
-			_animationPlayer.AddAnimationLibrary("pause_anim", showAnimLib);
+			animLib.AddAnimation("show", showAnimation);
 
 			// 隐藏动画
 			var hideAnimation = new Animation();
@@ -271,9 +272,10 @@ namespace PlantsVsZombies.UI
 			hideAnimation.TrackInsertKey(hideModulateTrack, 0.0f, new Color(1, 1, 1, 1));
 			hideAnimation.TrackInsertKey(hideModulateTrack, 0.2f, new Color(1, 1, 1, 0));
 
-			var hideAnimLib = new AnimationLibrary();
-			hideAnimLib.AddAnimation("hide", hideAnimation);
-			_animationPlayer.AddAnimationLibrary("pause_anim", hideAnimLib);
+			animLib.AddAnimation("hide", hideAnimation);
+
+			// 一次性添加动画库
+			_animationPlayer.AddAnimationLibrary("pause_anim", animLib);
 		}
 
 		/// <summary>

@@ -301,7 +301,8 @@ namespace PlantsVsZombies.Core
 			_currentGameScene = GetTree().CurrentScene as GameScene;
 			if (_currentGameScene != null)
 			{
-				_currentGameScene.OnSunlightChanged(newAmount);
+				// TODO: 实现 GameScene.OnSunlightChanged 方法
+				// _currentGameScene.OnSunlightChanged(newAmount);
 			}
 			
 			GD.Print($"[GameManager] 阳光数量变化: {newAmount}");

@@ -46,6 +46,7 @@ namespace PlantsVsZombies.UI
 
 			// 创建阳光图标
 			_sunIcon = new TextureRect();
+			_sunIcon.Name = "SunIcon";
 			_sunIcon.Position = new Vector2I(10, 15);
 			_sunIcon.Size = new Vector2I(50, 50);
 			_sunIcon.Texture = CreateSunTexture();
@@ -54,6 +55,7 @@ namespace PlantsVsZombies.UI
 
 			// 创建阳光数量标签
 			_sunCountLabel = new Label();
+			_sunCountLabel.Name = "SunCountLabel";
 			_sunCountLabel.Position = new Vector2I(70, 20);
 			_sunCountLabel.Size = new Vector2I(120, 40);
 			_sunCountLabel.Text = CurrentSun.ToString();
@@ -163,46 +165,82 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		private void CreateAnimations()
 		{
+			// 创建统一的动画库
+			var animLib = new AnimationLibrary();
+
 			// 创建收集动画
 			var collectAnimation = new Animation();
 			collectAnimation.Length = 0.5f;
 
 			// 缩放动画
 			var scaleTrack = collectAnimation.AddTrack(Animation.TrackType.Value, 0);
-			collectAnimation.TrackSetPath(scaleTrack, "scale");
+			collectAnimation.TrackSetPath(scaleTrack, "SunIcon:scale");
 			collectAnimation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One);
 			collectAnimation.TrackInsertKey(scaleTrack, 0.2f, Vector2.One * 1.3f);
 			collectAnimation.TrackInsertKey(scaleTrack, 0.5f, Vector2.One);
 
 			// 旋转动画
 			var rotationTrack = collectAnimation.AddTrack(Animation.TrackType.Value, 0);
-			collectAnimation.TrackSetPath(rotationTrack, "rotation");
+			collectAnimation.TrackSetPath(rotationTrack, "SunIcon:rotation");
 			collectAnimation.TrackInsertKey(rotationTrack, 0.0f, 0f);
 			collectAnimation.TrackInsertKey(rotationTrack, 0.5f, Mathf.Tau); // 完整旋转一圈
 
 			// 颜色动画
 			var modulateTrack = collectAnimation.AddTrack(Animation.TrackType.Value, 0);
-			collectAnimation.TrackSetPath(modulateTrack, "modulate");
+			collectAnimation.TrackSetPath(modulateTrack, "SunIcon:modulate");
 			collectAnimation.TrackInsertKey(modulateTrack, 0.0f, new Color(1.0f, 1.0f, 0.2f, 1.0f));
 			collectAnimation.TrackInsertKey(modulateTrack, 0.3f, new Color(1.0f, 1.0f, 1.0f, 1.0f));
 			collectAnimation.TrackInsertKey(modulateTrack, 0.5f, Colors.White);
 
-			var animLib = new AnimationLibrary();
 			animLib.AddAnimation("collect", collectAnimation);
-			_animationPlayer.AddAnimationLibrary("ui_anim", animLib);
 
 			// 创建数字变化动画
 			var numberAnimation = new Animation();
 			numberAnimation.Length = 0.3f;
 
 			var numberScaleTrack = numberAnimation.AddTrack(Animation.TrackType.Value, 0);
-			numberAnimation.TrackSetPath(numberScaleTrack, _sunCountLabel.GetPath());
+			numberAnimation.TrackSetPath(numberScaleTrack, "SunCountLabel:scale");
 			numberAnimation.TrackInsertKey(numberScaleTrack, 0.0f, Vector2.One * 1.2f);
 			numberAnimation.TrackInsertKey(numberScaleTrack, 0.3f, Vector2.One);
 
-			var numberAnimLib = new AnimationLibrary();
-			numberAnimLib.AddAnimation("number", numberAnimation);
-			_animationPlayer.AddAnimationLibrary("ui_anim", numberAnimLib);
+			animLib.AddAnimation("numberChange", numberAnimation); // 修复：使用正确的动画名称
+
+			// 创建消耗动画
+			var spendAnimation = new Animation();
+			spendAnimation.Length = 0.2f;
+
+			var spendScaleTrack = spendAnimation.AddTrack(Animation.TrackType.Value, 0);
+			spendAnimation.TrackSetPath(spendScaleTrack, "SunIcon:scale");
+			spendAnimation.TrackInsertKey(spendScaleTrack, 0.0f, Vector2.One * 0.8f);
+			spendAnimation.TrackInsertKey(spendScaleTrack, 0.2f, Vector2.One);
+
+			var spendModulateTrack = spendAnimation.AddTrack(Animation.TrackType.Value, 0);
+			spendAnimation.TrackSetPath(spendModulateTrack, "SunIcon:modulate");
+			spendAnimation.TrackInsertKey(spendModulateTrack, 0.0f, new Color(1.0f, 0.5f, 0.5f, 1.0f)); // 红色闪一下
+			spendAnimation.TrackInsertKey(spendModulateTrack, 0.2f, new Color(1.0f, 1.0f, 1.0f, 1.0f));
+
+			animLib.AddAnimation("spend", spendAnimation);
+
+			// 创建警告动画
+			var warningAnimation = new Animation();
+			warningAnimation.Length = 0.3f;
+
+			var warningModulateTrack = warningAnimation.AddTrack(Animation.TrackType.Value, 0);
+			warningAnimation.TrackSetPath(warningModulateTrack, "SunIcon:modulate");
+			warningAnimation.TrackInsertKey(warningModulateTrack, 0.0f, Colors.Red);
+			warningAnimation.TrackInsertKey(warningModulateTrack, 0.15f, Colors.White);
+			warningAnimation.TrackInsertKey(warningModulateTrack, 0.3f, Colors.Red);
+			warningAnimation.TrackInsertKey(warningModulateTrack, 0.45f, new Color(1.0f, 1.0f, 1.0f, 1.0f));
+
+			var warningScaleTrack = warningAnimation.AddTrack(Animation.TrackType.Value, 0);
+			warningAnimation.TrackSetPath(warningScaleTrack, "SunIcon:scale");
+			warningAnimation.TrackInsertKey(warningScaleTrack, 0.0f, Vector2.One * 1.1f);
+			warningAnimation.TrackInsertKey(warningScaleTrack, 0.3f, Vector2.One);
+
+			animLib.AddAnimation("warning", warningAnimation);
+
+			// 一次性添加动画库
+			_animationPlayer.AddAnimationLibrary("ui_anim", animLib);
 		}
 
 		/// <summary>
@@ -283,6 +321,10 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		private void UpdateDisplay()
 		{
+			// 防御性检查：如果标签还未初始化，直接返回
+			if (_sunCountLabel == null)
+				return;
+
 			_sunCountLabel.Text = CurrentSun.ToString();
 
 			// 根据阳光数量改变颜色
@@ -312,10 +354,10 @@ namespace PlantsVsZombies.UI
 			if (!_isAnimating)
 			{
 				_isAnimating = true;
-				_animationPlayer.Play("collect");
+				_animationPlayer.Play("ui_anim/collect");
 				_animationPlayer.AnimationFinished += (animName) =>
 				{
-					if (animName == "collect")
+					if (animName == "ui_anim/collect")
 					{
 						_isAnimating = false;
 					}
@@ -328,7 +370,7 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		private void PlayNumberChangeAnimation()
 		{
-			_animationPlayer.Play("numberChange");
+			_animationPlayer.Play("ui_anim/numberChange");
 		}
 
 		/// <summary>
@@ -336,23 +378,7 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		private void PlaySpendAnimation()
 		{
-			var spendAnimation = new Animation();
-			spendAnimation.Length = 0.2f;
-
-			var scaleTrack = spendAnimation.AddTrack(Animation.TrackType.Value, 0);
-			spendAnimation.TrackSetPath(scaleTrack, GetPath());
-			spendAnimation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One * 0.8f);
-			spendAnimation.TrackInsertKey(scaleTrack, 0.2f, Vector2.One);
-
-			var modulateTrack = spendAnimation.AddTrack(Animation.TrackType.Value, 0);
-			spendAnimation.TrackSetPath(modulateTrack, GetPath());
-			spendAnimation.TrackInsertKey(modulateTrack, 0.0f, new Color(1.0f, 0.5f, 0.5f, 1.0f)); // 红色闪一下
-			spendAnimation.TrackInsertKey(modulateTrack, 0.2f, _sunCountLabel.Modulate);
-
-			var animLib = new AnimationLibrary();
-			animLib.AddAnimation("spend", spendAnimation);
-			_animationPlayer.AddAnimationLibrary("ui_anim", animLib);
-			_animationPlayer.Play("spend");
+			_animationPlayer.Play("ui_anim/spend");
 		}
 
 		/// <summary>
@@ -360,25 +386,7 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		public void PlayWarningAnimation()
 		{
-			var warningAnimation = new Animation();
-			warningAnimation.Length = 0.3f;
-
-			var modulateTrack = warningAnimation.AddTrack(Animation.TrackType.Value, 0);
-			warningAnimation.TrackSetPath(modulateTrack, GetPath());
-			warningAnimation.TrackInsertKey(modulateTrack, 0.0f, Colors.Red);
-			warningAnimation.TrackInsertKey(modulateTrack, 0.15f, Colors.White);
-			warningAnimation.TrackInsertKey(modulateTrack, 0.3f, Colors.Red);
-			warningAnimation.TrackInsertKey(modulateTrack, 0.45f, _sunCountLabel.Modulate);
-
-			var scaleTrack = warningAnimation.AddTrack(Animation.TrackType.Value, 0);
-			warningAnimation.TrackSetPath(scaleTrack, GetPath());
-			warningAnimation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One * 1.1f);
-			warningAnimation.TrackInsertKey(scaleTrack, 0.3f, Vector2.One);
-
-			var animLib = new AnimationLibrary();
-			animLib.AddAnimation("warning", warningAnimation);
-			_animationPlayer.AddAnimationLibrary("ui_anim", animLib);
-			_animationPlayer.Play("warning");
+			_animationPlayer.Play("ui_anim/warning");
 		}
 
 		public override void _Process(double delta)

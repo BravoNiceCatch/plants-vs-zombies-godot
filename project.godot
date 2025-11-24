@@ -11,9 +11,9 @@ config_version=5
 [application]
 
 config/name="植物大战僵尸"
+run/main_scene="res://Scenes/MainMenu.tscn"
 config/features=PackedStringArray("4.5", "C#")
 config/icon="res://icon.svg"
-run/main_scene="res://Scenes/MainMenu.tscn"
 run/window_mode="windowed"
 run/size/viewport_width=1920
 run/size/viewport_height=1080

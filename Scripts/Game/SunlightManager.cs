@@ -1,4 +1,5 @@
 using Godot;
+using PlantsVsZombies.Core;
 using System;
 using System.Collections.Generic;
 
@@ -298,7 +299,7 @@ namespace Plants大战僵尸.Scripts.Game
         private Vector2 GetRandomSkyPosition()
         {
             // 在屏幕顶部随机位置生成阳光
-            float x = GD.RandRange(100f, 1820f); // 避免屏幕边缘
+            float x = (float)GD.RandRange(100f, 1820f); // 避免屏幕边缘
             float y = 50f; // 从顶部开始
             return new Vector2(x, y);
         }
@@ -310,11 +311,12 @@ namespace Plants大战僵尸.Scripts.Game
         /// <param name="isSkyDrop">是否为天降阳光</param>
         private void CreateSunlightAtPosition(Vector2 position, bool isSkyDrop)
         {
-            var sunlight = new Sun(position, isSkyDrop);
+            var sunlight = new Sun();
+            sunlight.Position = position;
             _activeSuns.Add(sunlight);
             
             // 订阅收集事件
-            sunlight.OnCollected += OnSunlightCollected;
+            sunlight.SunCollected += OnSunCollectedHandler;
 
             // 添加到场景
             var gameScene = GetTree().CurrentScene;
@@ -332,17 +334,21 @@ namespace Plants大战僵尸.Scripts.Game
         /// <summary>
         /// 阳光被收集事件处理
         /// </summary>
-        /// <param name="sun">被收集的阳光</param>
-        private void OnSunlightCollected(Sun sun)
+        /// <param name="value">阳光价值</param>
+        private void OnSunCollectedHandler(int value)
         {
-            AddSunlight(SUNLIGHT_VALUE);
-            _activeSuns.Remove(sun);
-            
-            CreateCollectEffect(sun.GlobalPosition);
-            
-            GD.Print($"阳光被收集，当前总数: {CurrentSunlight}");
-        }
+            AddSunlight(value);
 
+            // 找到并移除对应的阳光对象
+            if (_activeSuns.Count > 0)
+            {
+                var sunToRemove = _activeSuns[0]; // 简化处理，移除第一个
+                _activeSuns.Remove(sunToRemove);
+                CreateCollectEffect(sunToRemove.GlobalPosition);
+            }
+
+            GD.Print($"阳光被收集，价值: {value}, 当前总数: {CurrentSunlight}");
+        }
         /// <summary>
         /// 创建阳光收集效果
         /// </summary>
@@ -443,7 +449,10 @@ namespace Plants大战僵尸.Scripts.Game
         /// </summary>
         public void Pause()
         {
-            _skyDropTimer?.Paused = true;
+            if (_skyDropTimer != null)
+            {
+                _skyDropTimer.Paused = true;
+            }
             GD.Print("阳光系统已暂停");
         }
 
@@ -452,7 +461,10 @@ namespace Plants大战僵尸.Scripts.Game
         /// </summary>
         public void Resume()
         {
-            _skyDropTimer?.Paused = false;
+            if (_skyDropTimer != null)
+            {
+                _skyDropTimer.Paused = false;
+            }
             GD.Print("阳光系统已恢复");
         }
 

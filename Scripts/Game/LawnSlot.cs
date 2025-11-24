@@ -33,7 +33,8 @@ namespace PlantsVsZombies.Core
 		/// </summary>
 		private void InitializeGrassAppearance()
 		{
-			Size = new Vector2I(120, 120);
+			Size = new Vector2I(170, 170); // 最终优化为 170x170 格子大小以占据更大屏幕空间
+			CustomMinimumSize = new Vector2I(170, 170); // 强制最小大小
 			
 			// 设置基础草坪颜色
 			var styleBox = new StyleBoxFlat();
@@ -47,6 +48,7 @@ namespace PlantsVsZombies.Core
 			
 			// 添加草坪纹理精灵
 			_grassSprite = new Sprite2D();
+			_grassSprite.Name = "GrassSprite";
 			_grassSprite.Position = Size / 2;
 			_grassSprite.Modulate = new Color(1, 1, 1, 0.3f); // 半透明
 			AddChild(_grassSprite);
@@ -144,7 +146,7 @@ namespace PlantsVsZombies.Core
 			
 			// 为草坪精灵添加摇摆轨迹
 			var track = animation.AddTrack(Animation.TrackType.Value);
-			animation.TrackSetPath(track, "rotation");
+			animation.TrackSetPath(track, "GrassSprite:rotation");
 			animation.TrackInsertKey(track, 0.0f, 0f);
 			animation.TrackInsertKey(track, 1.0f, Mathf.DegToRad(2f));
 			animation.TrackInsertKey(track, 2.0f, 0f);
@@ -154,7 +156,7 @@ namespace PlantsVsZombies.Core
 			var animLib = new AnimationLibrary();
 			animLib.AddAnimation("sway", animation);
 			_animationPlayer.AddAnimationLibrary("lawn_anim", animLib);
-			_animationPlayer.Play("sway");
+			_animationPlayer.Play("lawn_anim/sway");
 			
 			// 随机开始时间，让每个格子的动画不同步
 			_animationPlayer.Seek(GD.Randf() * animation.Length);

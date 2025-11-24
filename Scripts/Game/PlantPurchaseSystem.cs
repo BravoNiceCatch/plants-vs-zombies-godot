@@ -1,5 +1,7 @@
 using Godot;
 using Plants大战僵尸.Scripts.Plants;
+using PlantsVsZombies.Core;
+using Plants大战僵尸.Scripts.Game;
 using System;
 using System.Collections.Generic;
 
@@ -116,13 +118,13 @@ namespace Plants大战僵尸.Scripts.Game
             if (_sunlightManager == null)
             {
                 GD.Print("SunlightManager 不存在，尝试查找现有阳光系统");
-                // 尝试从 GameScene 中获取阳光管理器
-                var gameScene = GetTree().CurrentScene as GameScene;
-                if (gameScene != null)
-                {
-                    // 这里需要根据实际的阳光管理实现进行调整
-                    GD.Print("等待 GameScene 中的阳光管理器初始化");
-                }
+                // TODO: GameScene 类暂时不存在，需要后续实现
+                // var gameScene = GetTree().CurrentScene as GameScene;
+                // if (gameScene != null)
+                // {
+                //     // 这里需要根据实际的阳光管理实现进行调整
+                //     GD.Print("等待 GameScene 中的阳光管理器初始化");
+                // }
             }
 
             // 初始化冷却时间字典

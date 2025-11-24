@@ -44,6 +44,9 @@ namespace PlantsVsZombies.Core
 			_collisionShape = new CollisionShape2D();
 			_lifetimeTimer = new Timer();
 			
+			// 设置节点名称，便于动画系统引用
+			_sunSprite.Name = "SunSprite";
+			
 			AddChild(_sunSprite);
 			AddChild(_animationPlayer);
 			AddChild(_collisionShape);
@@ -131,15 +134,35 @@ namespace PlantsVsZombies.Core
 		/// </summary>
 		private void SetupAnimation()
 		{
-			CreateFloatingAnimation();
-			CreatePulseAnimation();
-			CreateRotationAnimation();
+			// 创建统一的动画库
+			var animLib = new AnimationLibrary();
+
+			// 创建漂浮动画
+			CreateFloatingAnimation(animLib);
+
+			// 创建脉动动画
+			CreatePulseAnimation(animLib);
+
+			// 创建旋转动画
+			CreateRotationAnimation(animLib);
+
+			// 创建下落动画
+			CreateFallAnimation(animLib);
+
+			// 创建收集动画
+			CreateCollectAnimation(animLib);
+
+			// 创建过期动画
+			CreateExpireAnimation(animLib);
+
+			// 一次性添加动画库
+			_animationPlayer.AddAnimationLibrary("sun_anim", animLib);
 		}
 		
 		/// <summary>
 		/// 创建漂浮动画
 		/// </summary>
-		private void CreateFloatingAnimation()
+		private void CreateFloatingAnimation(AnimationLibrary animLib)
 		{
 			var animation = new Animation();
 			animation.Length = Lifetime;
@@ -159,15 +182,13 @@ namespace PlantsVsZombies.Core
 				animation.TrackInsertKey(track, time, offset);
 			}
 
-			var animLib = new AnimationLibrary();
 			animLib.AddAnimation("float", animation);
-			_animationPlayer.AddAnimationLibrary("sun_anim", animLib);
 		}
 		
 		/// <summary>
 		/// 创建脉动动画
 		/// </summary>
-		private void CreatePulseAnimation()
+		private void CreatePulseAnimation(AnimationLibrary animLib)
 		{
 			var animation = new Animation();
 			animation.Length = 1.0f;
@@ -180,16 +201,13 @@ namespace PlantsVsZombies.Core
 			animation.TrackInsertKey(track, 0.5f, Vector2.One * 1.1f);
 			animation.TrackInsertKey(track, 1.0f, Vector2.One);
 
-			var animLib = new AnimationLibrary();
 			animLib.AddAnimation("pulse", animation);
-			_animationPlayer.AddAnimationLibrary("sun_anim", animLib);
-			_animationPlayer.Play("pulse");
 		}
 		
 		/// <summary>
 		/// 创建旋转动画
 		/// </summary>
-		private void CreateRotationAnimation()
+		private void CreateRotationAnimation(AnimationLibrary animLib)
 		{
 			var animation = new Animation();
 			animation.Length = 4.0f;
@@ -201,10 +219,7 @@ namespace PlantsVsZombies.Core
 			animation.TrackInsertKey(track, 0.0f, 0f);
 			animation.TrackInsertKey(track, 4.0f, Mathf.Tau); // 完整旋转一圈
 
-			var animLib = new AnimationLibrary();
 			animLib.AddAnimation("rotate", animation);
-			_animationPlayer.AddAnimationLibrary("sun_anim", animLib);
-			_animationPlayer.Play("rotate");
 		}
 		
 		/// <summary>
@@ -227,44 +242,78 @@ namespace PlantsVsZombies.Core
 			_targetPosition = new Vector2(startPos.X + (float)GD.RandRange(-50f, 50f), targetY);
 			_fallTimer = 0f;
 			_isGrounded = false;
-			
+
 			// 播放下落动画
-			CreateFallAnimation();
-			_animationPlayer.Play("fall");
-			
+			_animationPlayer.Play("sun_anim/fall");
+
 			GD.Print($"[Sun] 阳光开始掉落: {startPos} -> {_targetPosition}");
 		}
 		
 		/// <summary>
-		/// 创建下落动画
+		/// 创建下落动画模板
 		/// </summary>
-		private void CreateFallAnimation()
+		private void CreateFallAnimation(AnimationLibrary animLib)
 		{
+			// 创建一个简单的下落动画模板，实际位置会在StartFalling中动态更新
 			var animation = new Animation();
 			animation.Length = FallDuration;
 			animation.LoopMode = Animation.LoopModeEnum.None;
 
 			var track = animation.AddTrack(Animation.TrackType.Value);
-			animation.TrackSetPath(track, "position");
+			// 作用于阳光节点自身的位置，避免影响父节点UI
+			animation.TrackSetPath(track, new NodePath("position"));
 
-			// 下落轨迹（带轻微摆动）
-			for (float t = 0f; t <= 1f; t += 0.1f)
-			{
-				var time = t * FallDuration;
-				var progress = t * t; // 加速度下落
-				var currentPos = Position.Lerp(_targetPosition, progress);
+			// 默认的直线下落动画（会被动态更新）
+			animation.TrackInsertKey(track, 0.0f, Vector2.Zero);
+			animation.TrackInsertKey(track, FallDuration, Vector2.Down * 200);
 
-				// 添加水平摆动
-				var sway = Mathf.Sin(t * Mathf.Pi * 2) * 20f;
-				currentPos.X += sway;
-
-				animation.TrackInsertKey(track, time, currentPos);
-			}
-
-			// 创建动画库并添加动画
-			var animLib = new AnimationLibrary();
 			animLib.AddAnimation("fall", animation);
-			_animationPlayer.AddAnimationLibrary("sun_anim", animLib);
+		}
+
+		/// <summary>
+		/// 创建收集动画
+		/// </summary>
+		private void CreateCollectAnimation(AnimationLibrary animLib)
+		{
+			var animation = new Animation();
+			animation.Length = 0.3f;
+
+			// 缩放消失动画 - 作用于阳光节点自身的缩放
+			var scaleTrack = animation.AddTrack(Animation.TrackType.Value);
+			animation.TrackSetPath(scaleTrack, new NodePath("scale"));
+			animation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One);
+			animation.TrackInsertKey(scaleTrack, 0.3f, Vector2.One * 2f);
+
+			// 透明度消失动画
+			var modulateTrack = animation.AddTrack(Animation.TrackType.Value);
+			animation.TrackSetPath(modulateTrack, "SunSprite:modulate");
+			animation.TrackInsertKey(modulateTrack, 0.0f, new Color(1.2f, 1.0f, 0.2f, 1.0f));
+			animation.TrackInsertKey(modulateTrack, 0.3f, new Color(1.2f, 1.0f, 0.2f, 0.0f));
+
+			animLib.AddAnimation("collect", animation);
+		}
+
+		/// <summary>
+		/// 创建过期动画
+		/// </summary>
+		private void CreateExpireAnimation(AnimationLibrary animLib)
+		{
+			var animation = new Animation();
+			animation.Length = 0.5f;
+
+			// 缩小消失动画 - 作用于阳光节点自身的缩放
+			var scaleTrack = animation.AddTrack(Animation.TrackType.Value);
+			animation.TrackSetPath(scaleTrack, new NodePath("scale"));
+			animation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One);
+			animation.TrackInsertKey(scaleTrack, 0.5f, Vector2.Zero);
+
+			// 透明度消失动画
+			var modulateTrack = animation.AddTrack(Animation.TrackType.Value);
+			animation.TrackSetPath(modulateTrack, "SunSprite:modulate");
+			animation.TrackInsertKey(modulateTrack, 0.0f, new Color(1.2f, 1.0f, 0.2f, 1.0f));
+			animation.TrackInsertKey(modulateTrack, 0.5f, new Color(1.2f, 1.0f, 0.2f, 0.0f));
+
+			animLib.AddAnimation("expire", animation);
 		}
 		
 		public override void _Process(double delta)
@@ -289,17 +338,17 @@ namespace PlantsVsZombies.Core
 		{
 			_isGrounded = true;
 			Position = _targetPosition;
-			
+
 			// 停止下落动画，开始漂浮动画
 			_animationPlayer.Stop();
-			_animationPlayer.Play("float");
-			
+			_animationPlayer.Play("sun_anim/float");
+
 			// 开始生命周期计时
 			_lifetimeTimer.Start();
-			
+
 			// 播放落地音效（如果有的话）
 			// TODO: 添加落地音效
-			
+
 			GD.Print($"[Sun] 阳光落地: {Position}");
 		}
 		
@@ -352,33 +401,14 @@ namespace PlantsVsZombies.Core
 		/// </summary>
 		private void PlayCollectAnimation()
 		{
-			var animation = new Animation();
-			animation.Length = 0.3f;
-			
-			// 缩放消失动画
-			var scaleTrack = animation.AddTrack(Animation.TrackType.Value);
-			animation.TrackSetPath(scaleTrack, "scale");
-			animation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One);
-			animation.TrackInsertKey(scaleTrack, 0.3f, Vector2.One * 2f);
-
-			// 透明度消失动画
-			var modulateTrack = animation.AddTrack(Animation.TrackType.Value);
-			animation.TrackSetPath(modulateTrack, "modulate");
-			animation.TrackInsertKey(modulateTrack, 0.0f, new Color(1.2f, 1.0f, 0.2f, 1.0f));
-			animation.TrackInsertKey(modulateTrack, 0.3f, new Color(1.2f, 1.0f, 0.2f, 0.0f));
-
-			var animLib = new AnimationLibrary();
-			animLib.AddAnimation("collect", animation);
-			_animationPlayer.AddAnimationLibrary("sun_anim", animLib);
-			
 			// 停止其他动画，播放收集动画
 			_animationPlayer.Stop();
-			_animationPlayer.Play("collect");
-			
+			_animationPlayer.Play("sun_anim/collect");
+
 			// 动画结束后删除自己
 			_animationPlayer.AnimationFinished += (animName) =>
 			{
-				if (animName == "collect")
+				if (animName == "sun_anim/collect")
 				{
 					QueueFree();
 				}
@@ -402,33 +432,14 @@ namespace PlantsVsZombies.Core
 		/// </summary>
 		private void PlayExpireAnimation()
 		{
-			var animation = new Animation();
-			animation.Length = 0.5f;
-			
-			// 缩小消失动画
-			var scaleTrack = animation.AddTrack(Animation.TrackType.Value);
-			animation.TrackSetPath(scaleTrack, "scale");
-			animation.TrackInsertKey(scaleTrack, 0.0f, Vector2.One);
-			animation.TrackInsertKey(scaleTrack, 0.5f, Vector2.Zero);
-
-			// 透明度消失动画
-			var modulateTrack = animation.AddTrack(Animation.TrackType.Value);
-			animation.TrackSetPath(modulateTrack, "modulate");
-			animation.TrackInsertKey(modulateTrack, 0.0f, new Color(1.2f, 1.0f, 0.2f, 1.0f));
-			animation.TrackInsertKey(modulateTrack, 0.5f, new Color(1.2f, 1.0f, 0.2f, 0.0f));
-
-			var animLib = new AnimationLibrary();
-			animLib.AddAnimation("expire", animation);
-			_animationPlayer.AddAnimationLibrary("sun_anim", animLib);
-			
 			// 停止其他动画，播放过期动画
 			_animationPlayer.Stop();
-			_animationPlayer.Play("expire");
-			
+			_animationPlayer.Play("sun_anim/expire");
+
 			// 动画结束后删除自己
 			_animationPlayer.AnimationFinished += (animName) =>
 			{
-				if (animName == "expire")
+				if (animName == "sun_anim/expire")
 				{
 					QueueFree();
 				}

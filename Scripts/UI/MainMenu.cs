@@ -23,33 +23,37 @@ namespace PlantsVsZombies.UI
 		/// </summary>
 		private void InitializeComponents()
 		{
-			// 设置基础大小
-			Size = new Vector2I(1920, 1080);
-			
-			// 创建背景
+			// 创建背景 - 手动设置锚点填满父容器
 			_backgroundPanel = new Panel();
-			_backgroundPanel.Size = Size;
+			_backgroundPanel.AnchorLeft = 0;
+			_backgroundPanel.AnchorTop = 0;
+			_backgroundPanel.AnchorRight = 1;
+			_backgroundPanel.AnchorBottom = 1;
 			AddChild(_backgroundPanel);
-			
-			// 创建标题
+
+			// 创建标题 - 使用锚点居中定位
 			_titleLabel = new Label();
 			_titleLabel.Text = "植物大战僵尸";
-			_titleLabel.Position = new Vector2I(760, 200);
-			_titleLabel.Size = new Vector2I(400, 80);
-			_titleLabel.AnchorLeft = 0;
-			_titleLabel.AnchorTop = 0;
-			_titleLabel.AnchorRight = 0;
-			_titleLabel.AnchorBottom = 0;
+			_titleLabel.AnchorLeft = 0.5f;
+			_titleLabel.AnchorTop = 0.5f;
+			_titleLabel.AnchorRight = 0.5f;
+			_titleLabel.AnchorBottom = 0.5f;
+			_titleLabel.OffsetLeft = -200; // 相对于中心偏移
+			_titleLabel.OffsetTop = -220;
+			_titleLabel.OffsetRight = 200;
+			_titleLabel.OffsetBottom = -180;
 			AddChild(_titleLabel);
-			
-			// 创建按钮容器
+
+			// 创建按钮容器 - 使用锚点居中定位
 			var buttonContainer = new VBoxContainer();
-			buttonContainer.Position = new Vector2I(810, 400);
-			buttonContainer.Size = new Vector2I(300, 250);
-			buttonContainer.AnchorLeft = 0;
-			buttonContainer.AnchorTop = 0;
-			buttonContainer.AnchorRight = 0;
-			buttonContainer.AnchorBottom = 0;
+			buttonContainer.AnchorLeft = 0.5f;
+			buttonContainer.AnchorTop = 0.5f;
+			buttonContainer.AnchorRight = 0.5f;
+			buttonContainer.AnchorBottom = 0.5f;
+			buttonContainer.OffsetLeft = -150; // 相对于中心偏移
+			buttonContainer.OffsetTop = -50;
+			buttonContainer.OffsetRight = 150;
+			buttonContainer.OffsetBottom = 200;
 			buttonContainer.AddThemeConstantOverride("separation", 20);
 			AddChild(buttonContainer);
 			
